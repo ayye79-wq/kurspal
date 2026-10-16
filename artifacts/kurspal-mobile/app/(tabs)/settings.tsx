@@ -10,6 +10,7 @@ import { useColors } from "@/hooks/useColors";
 import { useSubscription } from "@/lib/revenuecat";
 import { useGetToneProfile, getGetToneProfileQueryKey } from "@workspace/api-client-react";
 import { useAuth } from "@clerk/expo";
+import { API_BASE_URL } from "@/lib/config";
 
 export default function SettingsScreen() {
   const colors = useColors();
@@ -17,7 +18,8 @@ export default function SettingsScreen() {
   const isWeb = Platform.OS === "web";
   const router = useRouter();
   const { isSubscribed, isLoading, restore, isRestoring } = useSubscription();
-  const { signOut, isSignedIn } = useAuth();
+  const { signOut, isSignedIn, getToken } = useAuth();
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   const { data: toneProfile } = useGetToneProfile({
     query: { retry: false, queryKey: getGetToneProfileQueryKey() },
@@ -51,6 +53,35 @@ export default function SettingsScreen() {
         },
       },
     ]);
+  };
+
+  const deleteAccount = async () => {
+    setIsDeleting(true);
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API_BASE_URL}/api/me`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await signOut().catch(() => {});
+      router.replace("/(auth)/sign-in");
+    } catch {
+      Alert.alert("Couldn't delete account", "Please try again, or email admin@kurspal.com and we'll delete it for you.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Delete account",
+      "This permanently deletes your account, courses, materials, assignments and voice profile. This can't be undone. Any App Store or Google Play subscription must be cancelled separately in your store settings.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", style: "destructive", onPress: deleteAccount },
+      ],
+    );
   };
 
   return (
@@ -135,6 +166,16 @@ export default function SettingsScreen() {
             <View style={s.rowContent}>
               <Text style={[s.rowText, { color: "#dc2626" }]}>Sign out</Text>
             </View>
+          </TouchableOpacity>
+        ) : null}
+        {isSignedIn ? (
+          <TouchableOpacity style={s.row} onPress={handleDeleteAccount} disabled={isDeleting}>
+            <Feather name="trash-2" size={16} color="#dc2626" />
+            <View style={s.rowContent}>
+              <Text style={[s.rowText, { color: "#dc2626" }]}>Delete account</Text>
+              <Text style={s.rowSub}>Permanently remove your account and data</Text>
+            </View>
+            {isDeleting ? <ActivityIndicator size="small" color="#dc2626" /> : null}
           </TouchableOpacity>
         ) : (
           <TouchableOpacity style={s.row} onPress={() => router.push("/(auth)/sign-in" as any)}>

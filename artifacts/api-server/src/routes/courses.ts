@@ -29,7 +29,10 @@ async function autoSummarizeMaterial(title: string, content: string): Promise<st
           content: `Title: ${title}\n\nContent:\n${excerpt}`,
         },
       ],
-      max_tokens: 60,
+      // gpt-5 is a reasoning model: it rejects max_tokens, and reasoning tokens
+      // count against this budget, so leave headroom for the one-line summary.
+      max_completion_tokens: 1000,
+      reasoning_effort: "low",
     });
     return response.choices[0]?.message?.content?.trim() ?? null;
   } catch {
@@ -94,7 +97,7 @@ router.get("/courses/:id", requireAuth, async (req: Request, res: Response): Pro
   const assignments = await db
     .select()
     .from(assignmentsTable)
-    .where(eq(assignmentsTable.courseId, params.data.id))
+    .where(and(eq(assignmentsTable.courseId, params.data.id), eq(assignmentsTable.userId, userId)))
     .orderBy(desc(assignmentsTable.createdAt));
   res.json({ ...course, materials, assignments });
 });
@@ -240,8 +243,11 @@ router.post("/courses/:id/materials/upload", requireAuth, upload.single("file"),
       res.status(422).json({ error: "Could not extract text from PDF" });
       return;
     }
-  } else {
+  } else if (/\.(txt|md|markdown)$/i.test(fileName) || mimeType.startsWith("text/")) {
     content = req.file.buffer.toString("utf-8");
+  } else {
+    res.status(415).json({ error: "Only PDF, .txt and .md files are supported" });
+    return;
   }
 
   if (!content) {
@@ -265,14 +271,23 @@ router.post("/courses/:id/materials/upload", requireAuth, upload.single("file"),
 });
 
 router.delete("/courses/:courseId/materials/:materialId", requireAuth, async (req: Request, res: Response): Promise<void> => {
+  const userId = req.clerkUserId!;
   const params = MaterialIdParam.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: "Invalid params" });
     return;
   }
+  const [course] = await db
+    .select()
+    .from(coursesTable)
+    .where(and(eq(coursesTable.id, params.data.courseId), eq(coursesTable.userId, userId)));
+  if (!course) {
+    res.status(404).json({ error: "Material not found" });
+    return;
+  }
   const [deleted] = await db
     .delete(courseMaterialsTable)
-    .where(eq(courseMaterialsTable.id, params.data.materialId))
+    .where(and(eq(courseMaterialsTable.id, params.data.materialId), eq(courseMaterialsTable.courseId, params.data.courseId)))
     .returning();
   if (!deleted) {
     res.status(404).json({ error: "Material not found" });

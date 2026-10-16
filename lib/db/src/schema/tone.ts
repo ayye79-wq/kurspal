@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 
 export const toneProfilesTable = pgTable("tone_profiles", {
   id: serial("id").primaryKey(),
+  userId: text("user_id"),
   writingSample: text("writing_sample").notNull(),
   toneSummary: text("tone_summary"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

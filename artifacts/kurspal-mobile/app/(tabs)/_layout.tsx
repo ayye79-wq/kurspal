@@ -9,6 +9,8 @@ import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@clerk/expo";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { syncRevenueCatUser } from "@/lib/revenuecat";
 
 function NativeTabLayout() {
   return (
@@ -98,11 +100,19 @@ function ClassicTabLayout() {
 }
 
 export default function TabLayout() {
-  const { isSignedIn, isLoaded, getToken } = useAuth();
+  const { isSignedIn, isLoaded, getToken, userId } = useAuth();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     setAuthTokenGetter(() => getToken());
   }, [getToken]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    syncRevenueCatUser(userId ?? null).then(() =>
+      queryClient.invalidateQueries({ queryKey: ["revenuecat"] }),
+    );
+  }, [isLoaded, userId, queryClient]);
 
   if (!isLoaded) return null;
 

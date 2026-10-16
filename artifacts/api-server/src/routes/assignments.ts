@@ -68,6 +68,16 @@ router.post("/assignments", requireAuth, async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  if (parsed.data.courseId != null) {
+    const [course] = await db
+      .select({ id: coursesTable.id })
+      .from(coursesTable)
+      .where(and(eq(coursesTable.id, parsed.data.courseId), eq(coursesTable.userId, userId)));
+    if (!course) {
+      res.status(404).json({ error: "Course not found" });
+      return;
+    }
+  }
   const [assignment] = await db
     .insert(assignmentsTable)
     .values({ ...parsed.data, userId })

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { db, coursesTable, courseMaterialsTable } from "@workspace/db";
@@ -55,9 +55,12 @@ async function streamCompletion(
   res.end();
 }
 
-async function buildCourseContext(courseId: number | null | undefined): Promise<string> {
+async function buildCourseContext(userId: string, courseId: number | null | undefined): Promise<string> {
   if (!courseId) return "";
-  const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, courseId));
+  const [course] = await db
+    .select()
+    .from(coursesTable)
+    .where(and(eq(coursesTable.id, courseId), eq(coursesTable.userId, userId)));
   if (!course) return "";
 
   const materials = await db
@@ -95,7 +98,7 @@ router.post("/ai/analyze", async (req, res): Promise<void> => {
   setupSSE(res);
 
   const { prompt, subject, courseId } = parsed.data;
-  const courseContext = await buildCourseContext(courseId);
+  const courseContext = await buildCourseContext(req.clerkUserId!, courseId);
   const classContext = courseId ? "" : subject ? ` We're in a ${subject} class.` : "";
 
   await streamCompletion(res, [
@@ -141,7 +144,7 @@ router.post("/ai/draft", async (req, res): Promise<void> => {
   setupSSE(res);
 
   const { prompt, subject, ideaDirection, toneSummary, courseId } = parsed.data;
-  const courseContext = await buildCourseContext(courseId);
+  const courseContext = await buildCourseContext(req.clerkUserId!, courseId);
   const classContext = courseId ? "" : subject ? ` This is for a ${subject} class.` : "";
   const directionLine = ideaDirection
     ? `\n\nThe angle we're going with: ${ideaDirection}`
@@ -177,7 +180,7 @@ router.post("/ai/refine", async (req, res): Promise<void> => {
   setupSSE(res);
 
   const { currentDraft, instruction, prompt, toneSummary, courseId } = parsed.data;
-  const courseContext = await buildCourseContext(courseId);
+  const courseContext = await buildCourseContext(req.clerkUserId!, courseId);
   const toneInstruction = toneSummary
     ? `\n\nTheir writing voice: ${toneSummary}. Every edit should stay true to that voice — don't make it more formal, don't clean it up beyond what they'd write.`
     : "\n\nKeep their natural voice intact. Don't over-polish. It should still sound like a real student wrote it.";
@@ -208,7 +211,7 @@ router.post("/ai/classmate-replies", async (req, res): Promise<void> => {
   setupSSE(res);
 
   const { originalPrompt, classmatePost, toneSummary, courseId } = parsed.data;
-  const courseContext = await buildCourseContext(courseId);
+  const courseContext = await buildCourseContext(req.clerkUserId!, courseId);
   const toneInstruction = toneSummary
     ? `\n\nTheir voice: ${toneSummary}. Both replies should sound like them.`
     : "\n\nWrite in a genuine, conversational student voice — not stiff, not overly academic.";
@@ -252,7 +255,7 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
   setupSSE(res);
 
   const { courseId, currentWeek, messages, mode } = parsed.data;
-  const courseContext = await buildCourseContext(courseId);
+  const courseContext = await buildCourseContext(req.clerkUserId!, courseId);
   const weekLine = currentWeek ? `\n\nRight now we're on: ${currentWeek}. When the student asks about "this week" or "today's topic", that's what they mean. Ground your answers in that.` : "";
 
   let modeInstructions = "";
@@ -352,7 +355,7 @@ router.post("/ai/concepts", async (req, res): Promise<void> => {
   setupSSE(res);
 
   const { courseId } = parsed.data;
-  const courseContext = await buildCourseContext(courseId);
+  const courseContext = await buildCourseContext(req.clerkUserId!, courseId);
 
   if (!courseContext) {
     res.write(`data: ${JSON.stringify({ content: "Add some course materials first and I'll pull out the key concepts for you." })}\n\n`);
@@ -384,7 +387,7 @@ router.post("/ai/quiz", async (req, res): Promise<void> => {
   if (!parsed.success) { res.status(400).json({ error: "Invalid body" }); return; }
 
   const { content, courseId } = parsed.data;
-  const courseContext = await buildCourseContext(courseId);
+  const courseContext = await buildCourseContext(req.clerkUserId!, courseId);
 
   try {
     const completion = await openai.chat.completions.create({

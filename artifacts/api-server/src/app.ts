@@ -53,7 +53,27 @@ app.use(
 
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
-app.use(cors({ credentials: true, origin: true }));
+// Credentialed CORS only for Kurspal's own web origins. Native apps send no Origin header.
+const allowedOrigins = new Set(
+  [
+    "kurspal.com",
+    "www.kurspal.com",
+    ...(process.env.REPLIT_DOMAINS?.split(",") ?? []),
+    process.env.REPLIT_DEV_DOMAIN,
+  ]
+    .filter((d): d is string => !!d)
+    .map((d) => `https://${d.trim()}`),
+);
+app.use(
+  cors({
+    credentials: true,
+    origin: (origin, callback) => {
+      const isLocalDev =
+        process.env.NODE_ENV !== "production" && !!origin && /^http:\/\/localhost(:\d+)?$/.test(origin);
+      callback(null, !origin || allowedOrigins.has(origin) || isLocalDev);
+    },
+  }),
+);
 app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ extended: true, limit: "15mb" }));
 

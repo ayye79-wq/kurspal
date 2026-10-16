@@ -2,6 +2,8 @@ import { Router, type IRouter } from "express";
 import { stripeStorage } from "../stripeStorage";
 import { stripeService } from "../stripeService";
 import type { Request, Response } from "express";
+import { clerkClient } from "@clerk/express";
+import { requireAuth } from "../middlewares/clerkAuthMiddleware";
 
 const router: IRouter = Router();
 
@@ -44,35 +46,39 @@ router.get("/stripe/products", async (_req: Request, res: Response) => {
   }
 });
 
-router.post("/stripe/checkout", async (req: any, res: Response) => {
+router.post("/stripe/checkout", requireAuth, async (req: Request, res: Response) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({ error: "Sign in required to purchase" });
+    const userId = req.clerkUserId!;
+
+    const { priceId } = req.body as { priceId?: unknown };
+    if (typeof priceId !== "string" || !priceId) {
+      return res.status(400).json({ error: "priceId is required" });
     }
 
-    const { priceId } = req.body as { priceId: string };
-    if (!priceId) return res.status(400).json({ error: "priceId is required" });
+    const stripe = await (await import("../stripeClient")).getUncachableStripeClient();
+    const price = await stripe.prices.retrieve(priceId).catch(() => null);
+    if (!price || !price.active) return res.status(400).json({ error: "Unknown price" });
 
-    const userId = req.user.id as string;
-    const user = await stripeStorage.getUser(userId);
-    if (!user) return res.status(404).json({ error: "User not found" });
+    const clerkUser = await clerkClient.users.getUser(userId);
+    const email = clerkUser.primaryEmailAddress?.emailAddress ?? null;
+    const user = await stripeStorage.ensureUser(userId, email);
+    if (!user) return res.status(500).json({ error: "Could not load user" });
 
     // Get or create Stripe customer
     let customerId = user.stripeCustomerId;
     if (!customerId) {
-      const customer = await stripeService.createCustomer(user.email ?? "", userId);
+      const customer = await stripeService.createCustomer(email ?? "", userId);
       await stripeStorage.updateUserStripeInfo(userId, { stripeCustomerId: customer.id });
       customerId = customer.id;
     }
 
-    // Build success URL with userId so webhook can flip isPremium
+    // userId in metadata lets the webhook flip isPremium
     const host = `${req.protocol}://${req.get("host")}`;
-    const stripe = await (await import("../stripeClient")).getUncachableStripeClient();
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       payment_method_types: ["card"],
       line_items: [{ price: priceId, quantity: 1 }],
-      mode: "subscription",
+      mode: price.recurring ? "subscription" : "payment",
       success_url: `${host}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${host}/checkout/cancel`,
       metadata: { userId, priceId },
@@ -80,21 +86,21 @@ router.post("/stripe/checkout", async (req: any, res: Response) => {
 
     res.json({ url: session.url });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    req.log.error({ err }, "Checkout failed");
+    res.status(500).json({ error: "Checkout failed" });
   }
 });
 
-router.get("/stripe/subscription", async (req: any, res: Response) => {
+router.get("/stripe/subscription", requireAuth, async (req: Request, res: Response) => {
   try {
-    if (!req.user) return res.status(401).json({ error: "Unauthorized" });
-
-    const user = await stripeStorage.getUser(req.user.id);
+    const user = await stripeStorage.getUser(req.clerkUserId!);
     if (!user?.stripeSubscriptionId) return res.json({ subscription: null });
 
     const subscription = await stripeStorage.getSubscription(user.stripeSubscriptionId);
     res.json({ subscription });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    req.log.error({ err }, "Subscription lookup failed");
+    res.status(500).json({ error: "Subscription lookup failed" });
   }
 });
 

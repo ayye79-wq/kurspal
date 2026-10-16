@@ -15,6 +15,8 @@ function getRevenueCatApiKey(): string | null {
   return REVENUECAT_IOS_API_KEY;
 }
 
+let revenueCatConfigured = false;
+
 export function initializeRevenueCat(): boolean {
   const apiKey = getRevenueCatApiKey();
   if (!apiKey) {
@@ -26,10 +28,25 @@ export function initializeRevenueCat(): boolean {
       Purchases.setLogLevel(Purchases.LOG_LEVEL.DEBUG);
     }
     Purchases.configure({ apiKey });
+    revenueCatConfigured = true;
     return true;
   } catch (e) {
     console.warn("RevenueCat: configure failed (Expo Go?), subscriptions disabled:", e);
     return false;
+  }
+}
+
+// Ties purchases to the Clerk account so they follow the user across devices.
+export async function syncRevenueCatUser(userId: string | null): Promise<void> {
+  if (!revenueCatConfigured) return;
+  try {
+    if (userId) {
+      await Purchases.logIn(userId);
+    } else if (!(await Purchases.isAnonymous())) {
+      await Purchases.logOut();
+    }
+  } catch (e) {
+    console.warn("RevenueCat: user sync failed:", e);
   }
 }
 

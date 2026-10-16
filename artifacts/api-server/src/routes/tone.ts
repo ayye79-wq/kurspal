@@ -1,15 +1,18 @@
 import { Router, type IRouter } from "express";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db, toneProfilesTable } from "@workspace/db";
 import { SaveToneProfileBody } from "@workspace/api-zod";
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { requireAuth } from "../middlewares/clerkAuthMiddleware";
 
 const router: IRouter = Router();
 
-router.get("/tone-profile", async (req, res): Promise<void> => {
+router.get("/tone-profile", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.clerkUserId!;
   const [profile] = await db
     .select()
     .from(toneProfilesTable)
+    .where(eq(toneProfilesTable.userId, userId))
     .orderBy(desc(toneProfilesTable.updatedAt))
     .limit(1);
   if (!profile) {
@@ -19,7 +22,8 @@ router.get("/tone-profile", async (req, res): Promise<void> => {
   res.json(profile);
 });
 
-router.post("/tone-profile", async (req, res): Promise<void> => {
+router.post("/tone-profile", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.clerkUserId!;
   const parsed = SaveToneProfileBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -50,17 +54,22 @@ router.post("/tone-profile", async (req, res): Promise<void> => {
     req.log.warn({ err }, "Failed to generate tone summary");
   }
 
-  const existing = await db.select().from(toneProfilesTable).limit(1);
+  const existing = await db
+    .select()
+    .from(toneProfilesTable)
+    .where(eq(toneProfilesTable.userId, userId))
+    .limit(1);
   if (existing.length > 0) {
     const [updated] = await db
       .update(toneProfilesTable)
       .set({ writingSample, toneSummary })
+      .where(eq(toneProfilesTable.userId, userId))
       .returning();
     res.json(updated);
   } else {
     const [created] = await db
       .insert(toneProfilesTable)
-      .values({ writingSample, toneSummary })
+      .values({ userId, writingSample, toneSummary })
       .returning();
     res.json(created);
   }

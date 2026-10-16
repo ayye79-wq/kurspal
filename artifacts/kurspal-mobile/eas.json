@@ -24,7 +24,7 @@
       },
       "android": {
         "buildType": "app-bundle",
-        "resourceClass": "large"
+        "resourceClass": "medium"
       },
       "env": {
         "EXPO_PUBLIC_DOMAIN": "kurspal.com",

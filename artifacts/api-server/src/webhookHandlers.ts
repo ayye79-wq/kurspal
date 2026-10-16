@@ -38,7 +38,9 @@ export class WebhookHandlers {
               stripeCustomerId: session.customer as string,
             });
           }
-          await stripeStorage.setUserPremium(userId, true, null);
+          // One-time Finals Mode purchases last 7 days; subscriptions stay active until cancelled.
+          const expiresAt = subscriptionId ? null : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+          await stripeStorage.setUserPremium(userId, true, expiresAt);
           logger.info({ userId, subscriptionId }, "Kurspal Premium activated");
         }
       }

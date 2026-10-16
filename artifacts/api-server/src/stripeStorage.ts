@@ -56,6 +56,18 @@ export class StripeStorage {
     return user ?? null;
   }
 
+  async ensureUser(id: string, email: string | null) {
+    await db
+      .insert(usersTable)
+      .values({ id, email })
+      .onConflictDoNothing({ target: usersTable.id });
+    return this.getUser(id);
+  }
+
+  async deleteUser(id: string) {
+    await db.delete(usersTable).where(eq(usersTable.id, id));
+  }
+
   async updateUserStripeInfo(
     userId: string,
     info: { stripeCustomerId?: string; stripeSubscriptionId?: string },
