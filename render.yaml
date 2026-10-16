@@ -1,0 +1,45 @@
+# Render Blueprint: one web service runs the API (/api) and serves the web apps
+# (/ and /kurspal-app/). The database lives on Neon; see MIGRATING_OFF_REPLIT.md.
+services:
+  - type: web
+    name: kurspal
+    runtime: node
+    plan: starter
+    region: oregon
+    branch: main
+    autoDeploy: true
+    # NODE_ENV stays unset during the build so pnpm installs dev dependencies (vite, esbuild).
+    buildCommand: >-
+      npm install -g pnpm@10.26.1 &&
+      pnpm install --frozen-lockfile
+      --filter "@workspace/api-server..."
+      --filter "@workspace/classmate-ai..."
+      --filter "@workspace/kurspal-app..." &&
+      pnpm --filter @workspace/api-server run build &&
+      PORT=3000 BASE_PATH=/ pnpm --filter @workspace/classmate-ai run build &&
+      PORT=3000 BASE_PATH=/kurspal-app/ pnpm --filter @workspace/kurspal-app run build
+    # Applies schema changes (public schema only) before each deploy goes live.
+    preDeployCommand: pnpm --filter @workspace/db run push
+    startCommand: NODE_ENV=production node --enable-source-maps artifacts/api-server/dist/index.mjs
+    healthCheckPath: /api/healthz
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: PUBLIC_DOMAINS
+        value: kurspal.com,www.kurspal.com
+      - key: DATABASE_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: VITE_CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: VITE_CLERK_PROXY_URL
+        sync: false

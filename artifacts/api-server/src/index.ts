@@ -18,7 +18,7 @@ async function initStripe() {
     // Create a fresh StripeSync AFTER migrations complete
     const stripeSync = await getStripeSync();
 
-    const domain = process.env.REPLIT_DOMAINS?.split(",")[0];
+    const domain = (process.env.PUBLIC_DOMAINS ?? process.env.REPLIT_DOMAINS)?.split(",")[0]?.trim();
     if (domain) {
       const webhookUrl = `https://${domain}/api/stripe/webhook`;
       await stripeSync.findOrCreateManagedWebhook(webhookUrl);

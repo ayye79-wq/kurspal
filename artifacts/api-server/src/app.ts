@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
@@ -58,6 +60,7 @@ const allowedOrigins = new Set(
   [
     "kurspal.com",
     "www.kurspal.com",
+    ...(process.env.PUBLIC_DOMAINS?.split(",") ?? []),
     ...(process.env.REPLIT_DOMAINS?.split(",") ?? []),
     process.env.REPLIT_DEV_DOMAIN,
   ]
@@ -87,5 +90,21 @@ app.use(
 );
 
 app.use("/api", router);
+
+// Off Replit there is no static router in front of the API, so this server also
+// serves the built web apps (paths are relative to the repo root).
+const webApps = [
+  { base: "/kurspal-app", dir: "artifacts/kurspal-app/dist/public" },
+  { base: "/", dir: "artifacts/classmate-ai/dist/public" },
+];
+for (const { base, dir } of webApps) {
+  const root = path.resolve(process.cwd(), dir);
+  if (!fs.existsSync(path.join(root, "index.html"))) continue;
+  app.use(base, express.static(root, { index: false, maxAge: "1h" }));
+  app.get(base === "/" ? "/{*splat}" : [base, `${base}/{*splat}`], (req, res, next) => {
+    if (req.path.startsWith("/api")) return next();
+    res.sendFile(path.join(root, "index.html"));
+  });
+}
 
 export default app;
