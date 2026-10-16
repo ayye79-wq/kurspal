@@ -1,0 +1,26 @@
+kind = "mobile"
+previewPath = "/kurspal-mobile/"
+title = "Kurspal Mobile"
+version = "1.0.0"
+id = "artifacts/kurspal-mobile"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+name = "expo"
+paths = [ "/kurspal-mobile/" ]
+localPort = 19718
+
+[services.development]
+run = "pnpm --filter @workspace/kurspal-mobile run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/kurspal-mobile", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/kurspal-mobile", "run", "serve" ]
+
+[services.env]
+PORT = "19718"
+BASE_PATH = "/kurspal-mobile/"

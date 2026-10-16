@@ -1,0 +1,47 @@
+{
+  "cli": {
+    "version": ">= 14.7.1",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": false
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "ios": {
+        "resourceClass": "m-medium"
+      },
+      "android": {
+        "buildType": "app-bundle",
+        "resourceClass": "large"
+      },
+      "env": {
+        "EXPO_PUBLIC_DOMAIN": "kurspal.com",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_Y2l2aWwta3JpbGwtNTUuY2xlcmsuYWNjb3VudHMuZGV2JA",
+        "EXPO_PUBLIC_CLERK_PROXY_URL": "https://kurspal.com/api/__clerk"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "6767239690"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-play-service-account.json",
+        "track": "internal"
+      }
+    }
+  }
+}

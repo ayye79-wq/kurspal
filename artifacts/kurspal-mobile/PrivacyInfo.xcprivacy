@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Whether the app uses data for tracking across apps/websites owned by other companies -->
+  <key>NSPrivacyTracking</key>
+  <false/>
+
+  <!-- APIs that require a declared reason to use -->
+  <key>NSPrivacyAccessedAPITypes</key>
+  <array>
+
+    <!-- UserDefaults — used by AsyncStorage (@react-native-async-storage/async-storage) -->
+    <!-- to store the auth token and app preferences -->
+    <dict>
+      <key>NSPrivacyAccessedAPIType</key>
+      <string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+      <key>NSPrivacyAccessedAPITypeReasons</key>
+      <array>
+        <!-- CA92.1: App reads/writes values to user defaults for its own app functionality -->
+        <string>CA92.1</string>
+      </array>
+    </dict>
+
+    <!-- File timestamp APIs — used by expo-document-picker and Metro/React Native internals -->
+    <dict>
+      <key>NSPrivacyAccessedAPIType</key>
+      <string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+      <key>NSPrivacyAccessedAPITypeReasons</key>
+      <array>
+        <!-- C617.1: Display file timestamps to the person using the device -->
+        <string>C617.1</string>
+        <!-- 3B52.1: Access required by included third-party SDK (Metro bundler, document picker) -->
+        <string>3B52.1</string>
+      </array>
+    </dict>
+
+    <!-- System boot time — used by React Native performance tracing internals -->
+    <dict>
+      <key>NSPrivacyAccessedAPIType</key>
+      <string>NSPrivacyAccessedAPICategorySystemBootTime</string>
+      <key>NSPrivacyAccessedAPITypeReasons</key>
+      <array>
+        <!-- 35F9.1: Calculate absolute event timestamps anchored to system boot time -->
+        <string>35F9.1</string>
+      </array>
+    </dict>
+
+  </array>
+
+  <!-- Data types collected — none tracked; all data stays within the app -->
+  <key>NSPrivacyCollectedDataTypes</key>
+  <array/>
+</dict>
+</plist>

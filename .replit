@@ -1,0 +1,84 @@
+modules = ["nodejs-24", "python-3.11", "postgresql-16"]
+
+[deployment]
+router = "application"
+deploymentTarget = "autoscale"
+
+[deployment.postBuild]
+args = ["pnpm", "store", "prune"]
+env = { "CI" = "true" }
+
+[workflows]
+
+[agent]
+stack = "PNPM_WORKSPACE"
+expertMode = true
+integrations = ["stripe:1.0.0", "revenuecat:1.0.0"]
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 20000
+
+[[ports]]
+localPort = 8080
+externalPort = 80
+
+[[ports]]
+localPort = 8081
+externalPort = 8081
+
+[[ports]]
+localPort = 8082
+externalPort = 3001
+
+[[ports]]
+localPort = 8083
+externalPort = 3003
+
+[[ports]]
+localPort = 8084
+externalPort = 4200
+
+[[ports]]
+localPort = 8085
+externalPort = 5000
+
+[[ports]]
+localPort = 8086
+externalPort = 3002
+
+[[ports]]
+localPort = 8087
+externalPort = 5173
+
+[[ports]]
+localPort = 8765
+externalPort = 8008
+
+[[ports]]
+localPort = 19718
+externalPort = 6000
+
+[[ports]]
+localPort = 19719
+externalPort = 6800
+
+[[ports]]
+localPort = 21468
+externalPort = 8000
+
+[[ports]]
+localPort = 25510
+externalPort = 3000
+
+[nix]
+channel = "stable-25_05"
+packages = ["eas-cli"]
+
+[userenv]
+
+[userenv.shared]
+EXPO_PUBLIC_REVENUECAT_TEST_API_KEY = "test_qkBklrFhKUxSdACKekkxrCsfKUA"
+EXPO_PUBLIC_REVENUECAT_IOS_API_KEY = "appl_LQKiXxwmCaEVxgVqOhiVmULcmyA"
+EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY = "goog_yVntSZgJgiAhnpJpYiirpTtehxW"
+REVENUECAT_PROJECT_ID = "projdbf375b5"

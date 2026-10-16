@@ -1,0 +1,11 @@
+{
+  "name": "@workspace/api-spec",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "codegen": "orval --config ./orval.config.ts && printf 'export * from \"./generated/api\";\\n' > ../api-zod/src/index.ts && pnpm -w run typecheck:libs && cp ../api-client-react/src/custom-fetch.ts ../../artifacts/kurspal-mobile/vendor/api-client-react/src/ && cp ../api-client-react/src/index.ts ../../artifacts/kurspal-mobile/vendor/api-client-react/src/ && cp ../api-client-react/src/generated/api.ts ../../artifacts/kurspal-mobile/vendor/api-client-react/src/generated/ && cp ../api-client-react/src/generated/api.schemas.ts ../../artifacts/kurspal-mobile/vendor/api-client-react/src/generated/"
+  },
+  "devDependencies": {
+    "orval": "^8.5.2"
+  }
+}

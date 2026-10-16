@@ -1,0 +1,121 @@
+{
+  "expo": {
+    "name": "Kurspal",
+    "slug": "kurspal-mobile",
+    "version": "1.0.1",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "kurspal",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0d0e13"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.kurspal.app",
+      "buildNumber": "23",
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Kurspal uses your camera to scan handwritten notes and printed materials, extracting text to add as course materials.",
+        "NSPhotoLibraryUsageDescription": "Kurspal accesses your photo library to import images of notes and course materials, extracting text to add as course materials.",
+        "NSPhotoLibraryAddUsageDescription": "Kurspal saves scanned notes to your photo library.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "androidStatusBar": {
+      "barStyle": "light-content",
+      "backgroundColor": "#00000000",
+      "translucent": true
+    },
+    "androidNavigationBar": {
+      "barStyle": "light-content",
+      "backgroundColor": "#0a0812"
+    },
+    "android": {
+      "package": "com.kurspal.app",
+      "versionCode": 7,
+      "edgeToEdgeEnabled": true,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#0d0e13"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.VIBRATE"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": false,
+          "data": [
+            {
+              "scheme": "kurspal"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
+    },
+    "web": {
+      "favicon": "./assets/images/icon.png"
+    },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "origin": "https://kurspal.app/"
+        }
+      ],
+      "expo-font",
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Kurspal accesses your photo library to import images of notes and course materials, extracting text to add as course materials.",
+          "cameraPermission": "Kurspal uses your camera to scan handwritten notes and printed materials, extracting text to add as course materials."
+        }
+      ],
+      "@clerk/expo",
+      "./plugins/withPrivacyManifest",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "extraPods": [
+              {
+                "name": "GoogleUtilities",
+                "modular_headers": true
+              },
+              {
+                "name": "RecaptchaInterop",
+                "modular_headers": true
+              },
+              {
+                "name": "AppCheckCore",
+                "modular_headers": true
+              }
+            ]
+          }
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "f04ad7ab-5cf1-4294-b6cd-2f1c4a5c1ce1"
+      }
+    }
+  }
+}
