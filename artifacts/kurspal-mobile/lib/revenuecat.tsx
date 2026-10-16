@@ -5,7 +5,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 
 const REVENUECAT_IOS_API_KEY = "appl_LQKiXxwmCaEVxgVqOhiVmULcmyA";
 // Get your Android key from RevenueCat Dashboard → Project → Apps → Android app → API Key
-const REVENUECAT_ANDROID_API_KEY = "goog_qoJzLFRswmgzdBWYCTqBYtrdQLF";
+const REVENUECAT_ANDROID_API_KEY = "goog_yVntSZgJgiAhnpJpYiirpTtehxW";
 
 export const REVENUECAT_ENTITLEMENT_IDENTIFIER = "premium";
 
