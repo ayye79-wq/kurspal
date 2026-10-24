@@ -4,6 +4,7 @@ import { z } from "zod";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { db, coursesTable, courseMaterialsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/clerkAuthMiddleware";
+import { requireAiQuota } from "../middlewares/aiQuotaMiddleware";
 import {
   AnalyzePromptBody,
   GenerateDraftBody,
@@ -26,7 +27,8 @@ const CourseConceptsBody = z.object({
 });
 
 const router: IRouter = Router();
-router.use(requireAuth);
+// Scoped to /ai so routers mounted after this one (e.g. public Stripe routes) stay reachable.
+router.use("/ai", requireAuth, requireAiQuota);
 
 function setupSSE(res: import("express").Response): void {
   res.setHeader("Content-Type", "text/event-stream");
@@ -38,18 +40,31 @@ async function streamCompletion(
   res: import("express").Response,
   messages: { role: "system" | "user" | "assistant"; content: string }[]
 ): Promise<void> {
-  const stream = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    max_completion_tokens: 2048,
-    messages,
-    stream: true,
-  });
+  // Stop paying for tokens once the student leaves the screen.
+  const abort = new AbortController();
+  res.on("close", () => abort.abort());
 
-  for await (const chunk of stream) {
-    const content = chunk.choices[0]?.delta?.content;
-    if (content) {
-      res.write(`data: ${JSON.stringify({ content })}\n\n`);
+  try {
+    const stream = await openai.chat.completions.create(
+      {
+        model: "gpt-4o-mini",
+        max_completion_tokens: 2048,
+        messages,
+        stream: true,
+      },
+      { signal: abort.signal },
+    );
+
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content;
+      if (content) {
+        res.write(`data: ${JSON.stringify({ content })}\n\n`);
+      }
     }
+  } catch (err) {
+    if (abort.signal.aborted) return;
+    res.req.log.error({ err }, "AI stream failed");
+    res.write(`data: ${JSON.stringify({ error: "Couldn't reach the AI. Please try again." })}\n\n`);
   }
   res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
   res.end();

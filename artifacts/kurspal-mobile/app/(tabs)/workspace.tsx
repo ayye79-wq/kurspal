@@ -6,8 +6,7 @@ import {
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
-import { API_BASE_URL } from "@/lib/config";
-import { fetch } from "expo/fetch";
+import { AiLimitError, postAi, showLimitAlert } from "@/lib/api";
 import * as Haptics from "expo-haptics";
 import * as Clipboard from "expo-clipboard";
 import { useColors } from "@/hooks/useColors";
@@ -57,18 +56,8 @@ export default function WorkspaceScreen() {
   const [saveTitle, setSaveTitle] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
-  const domain = API_BASE_URL.replace("https://", "");
-
   const streamToState = async (url: string, body: object, setter: (v: string) => void) => {
-    const token = await getToken();
-    const resp = await fetch(`https://${domain}${url}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify(body),
-    });
+    const resp = await postAi(url, body, getToken);
     if (!resp.ok) throw new Error("Something went wrong. Please try again.");
     const reader = resp.body?.getReader();
     if (!reader) throw new Error("No reader");
@@ -80,10 +69,10 @@ export default function WorkspaceScreen() {
       const chunk = dec.decode(value, { stream: true });
       for (const line of chunk.split("\n")) {
         if (!line.startsWith("data: ")) continue;
-        try {
-          const parsed = JSON.parse(line.slice(6));
-          if (parsed.content) { out += parsed.content; setter(out); }
-        } catch {}
+        let parsed: { content?: string; error?: string };
+        try { parsed = JSON.parse(line.slice(6)); } catch { continue; }
+        if (parsed.error) throw new Error(parsed.error);
+        if (parsed.content) { out += parsed.content; setter(out); }
       }
     }
     return out;
@@ -100,7 +89,9 @@ export default function WorkspaceScreen() {
       }, setAngles);
       setStep("analyzed");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {
+    } catch (err) {
+      if (err instanceof AiLimitError) showLimitAlert(err, router);
+      else Alert.alert("Couldn't analyze the prompt", "Please try again.");
       setStep("input");
     }
   };
@@ -119,7 +110,9 @@ export default function WorkspaceScreen() {
       }, setDraft);
       setStep("drafted");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {
+    } catch (err) {
+      if (err instanceof AiLimitError) showLimitAlert(err, router);
+      else Alert.alert("Drafting failed", "Please try again.");
       setStep("analyzed");
     }
   };
@@ -138,8 +131,9 @@ export default function WorkspaceScreen() {
       }, setDraft);
       setCustomInstruction("");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {
-      Alert.alert("Refinement failed", "Please try again.");
+    } catch (err) {
+      if (err instanceof AiLimitError) showLimitAlert(err, router);
+      else Alert.alert("Refinement failed", "Please try again.");
     } finally {
       setIsRefining(false);
     }
@@ -158,8 +152,9 @@ export default function WorkspaceScreen() {
         courseId: selectedCourseId,
       }, setReplyOutput);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {
-      Alert.alert("Reply failed", "Please try again.");
+    } catch (err) {
+      if (err instanceof AiLimitError) showLimitAlert(err, router);
+      else Alert.alert("Reply failed", "Please try again.");
     } finally {
       setIsReplying(false);
     }

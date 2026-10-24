@@ -3,8 +3,22 @@ import { eq } from "drizzle-orm";
 import { clerkClient } from "@clerk/express";
 import { db, coursesTable, assignmentsTable, toneProfilesTable, usersTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/clerkAuthMiddleware";
+import { FREE_DAILY_AI_LIMIT, ensureUserRow, getUsageToday, hasActivePremium } from "../lib/premium";
 
 const router: IRouter = Router();
+
+// Plan and today's AI usage, so the apps can show "3 of 10 left" or a Premium badge.
+router.get("/me/usage", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.clerkUserId!;
+  const user = await ensureUserRow(userId);
+  const isPremium = hasActivePremium(user);
+  res.json({
+    isPremium,
+    premiumExpiresAt: user.premiumExpiresAt,
+    used: await getUsageToday(userId),
+    limit: isPremium ? null : FREE_DAILY_AI_LIMIT,
+  });
+});
 
 // Permanently deletes the signed-in user's data and their Clerk account.
 // Materials and drafts cascade from courses and assignments.

@@ -51,15 +51,18 @@ export function useSSE() {
             const dataStr = line.replace("data: ", "").trim();
             if (!dataStr) continue;
 
+            let data: any;
             try {
-              const data = JSON.parse(dataStr);
-              if (data.done) break;
-              if (data.content) {
-                fullContent += data.content;
-                setContent(fullContent);
-              }
+              data = JSON.parse(dataStr);
             } catch (e) {
               console.error("Failed to parse SSE data", e);
+              continue;
+            }
+            if (data.error) throw new Error(data.error);
+            if (data.done) break;
+            if (data.content) {
+              fullContent += data.content;
+              setContent(fullContent);
             }
           }
         }

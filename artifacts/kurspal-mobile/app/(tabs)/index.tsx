@@ -13,6 +13,8 @@ import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import { fetch } from "expo/fetch";
 import { API_BASE_URL } from "@/lib/config";
+import { AiLimitError, authHeaders, postAi, showLimitAlert } from "@/lib/api";
+import { useAuth } from "@clerk/expo";
 import { useColors } from "@/hooks/useColors";
 import {
   useListCourses,
@@ -63,6 +65,7 @@ export default function CoursesScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { getToken } = useAuth();
   const isWeb = Platform.OS === "web";
   const queryClient = useQueryClient();
 
@@ -176,11 +179,7 @@ export default function CoursesScreen() {
   };
 
   const extractTextFromImage = async (base64: string, mimeType: string) => {
-    const resp = await fetch(`${API_BASE_URL}/api/ai/scan`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imageBase64: base64, mimeType }),
-    });
+    const resp = await postAi("/api/ai/scan", { imageBase64: base64, mimeType }, getToken);
     const data = await resp.json() as { text?: string; error?: string };
     if (!resp.ok || !data.text) throw new Error(data.error ?? "Extraction failed");
     return data.text;
@@ -199,8 +198,9 @@ export default function CoursesScreen() {
     try {
       const text = await extractTextFromImage(result.assets[0].base64, "image/jpeg");
       await autoSaveMaterial("Scanned notes", text, "notes");
-    } catch {
-      Alert.alert("Scan failed", "Couldn't extract text from the image. Try again.");
+    } catch (err) {
+      if (err instanceof AiLimitError) showLimitAlert(err, router);
+      else Alert.alert("Scan failed", "Couldn't extract text from the image. Try again.");
     } finally {
       setScanning(false);
     }
@@ -219,8 +219,9 @@ export default function CoursesScreen() {
     try {
       const text = await extractTextFromImage(result.assets[0].base64, "image/jpeg");
       await autoSaveMaterial("Uploaded notes", text, "notes");
-    } catch {
-      Alert.alert("Upload failed", "Couldn't extract text from the image. Try again.");
+    } catch (err) {
+      if (err instanceof AiLimitError) showLimitAlert(err, router);
+      else Alert.alert("Upload failed", "Couldn't extract text from the image. Try again.");
     } finally {
       setScanning(false);
     }
@@ -243,6 +244,7 @@ export default function CoursesScreen() {
       formData.append("materialType", "pdf");
       const resp = await fetch(`${API_BASE_URL}/api/courses/${addSheetCourseId}/materials/upload`, {
         method: "POST",
+        headers: await authHeaders(getToken),
         body: formData,
       });
       const data = await resp.json() as { content?: string; error?: string };

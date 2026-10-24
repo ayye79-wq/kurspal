@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { useSSE } from "@/hooks/use-sse";
+import { useSSE, DailyLimitError } from "@/hooks/use-sse";
+import { PaywallModal, type PaywallFeature } from "@/components/paywall-modal";
 import { useGetToneProfile, useCreateAssignment, useSaveDraft, useGetCourse, getGetCourseQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -53,6 +54,12 @@ export default function Workspace() {
   const { stream: draftStream, isStreaming: isDrafting, content: draftContent } = useSSE();
   const { stream: refineStream, isStreaming: isRefining, content: refineContent } = useSSE();
   const { stream: replyStream, isStreaming: isReplying, content: replyContent } = useSSE();
+  const [paywall, setPaywall] = useState<PaywallFeature | null>(null);
+  const limitHit = (e: unknown) => {
+    if (!(e instanceof DailyLimitError)) return false;
+    setPaywall("explain_limit");
+    return true;
+  };
 
   const [step, setStep] = useState<Step>("input");
   const [selectedDirection, setSelectedDirection] = useState("");
@@ -83,8 +90,8 @@ export default function Workspace() {
         courseId: course?.id || undefined
       });
       setStep("analyzed");
-    } catch {
-      toast({ title: "Analysis failed", variant: "destructive" });
+    } catch (e) {
+      if (!limitHit(e)) toast({ title: "Analysis failed", variant: "destructive" });
       setStep("input");
     }
   };
@@ -101,8 +108,8 @@ export default function Workspace() {
       });
       setCurrentDraft(content);
       setStep("drafted");
-    } catch {
-      toast({ title: "Drafting failed", variant: "destructive" });
+    } catch (e) {
+      if (!limitHit(e)) toast({ title: "Drafting failed", variant: "destructive" });
       setStep("analyzed");
     }
   };
@@ -118,8 +125,8 @@ export default function Workspace() {
         courseId: course?.id || undefined
       });
       setCurrentDraft(content);
-    } catch {
-      toast({ title: "Refinement failed", variant: "destructive" });
+    } catch (e) {
+      if (!limitHit(e)) toast({ title: "Refinement failed", variant: "destructive" });
     }
   };
 
@@ -132,8 +139,8 @@ export default function Workspace() {
         toneSummary: toneProfile?.toneSummary || undefined,
         courseId: course?.id || undefined
       });
-    } catch {
-      toast({ title: "Reply generation failed", variant: "destructive" });
+    } catch (e) {
+      if (!limitHit(e)) toast({ title: "Reply generation failed", variant: "destructive" });
     }
   };
 
@@ -183,6 +190,7 @@ export default function Workspace() {
 
   return (
     <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-3xl mx-auto">
+      <PaywallModal feature={paywall} onClose={() => setPaywall(null)} />
 
       {/* Header */}
       <div className="flex items-start justify-between gap-4">

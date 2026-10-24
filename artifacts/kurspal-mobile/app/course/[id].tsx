@@ -9,6 +9,8 @@ import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { fetch } from "expo/fetch";
 import { API_BASE_URL } from "@/lib/config";
+import { AiLimitError, authHeaders, postAi, showLimitAlert } from "@/lib/api";
+import { useAuth } from "@clerk/expo";
 import * as Haptics from "expo-haptics";
 import * as Clipboard from "expo-clipboard";
 import * as ImagePicker from "expo-image-picker";
@@ -44,6 +46,7 @@ export default function CourseDetailScreen() {
   const { id, mode: modeParam } = useLocalSearchParams<{ id: string; mode?: string }>();
   const courseId = parseInt(id ?? "0", 10);
   const router = useRouter();
+  const { getToken } = useAuth();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
@@ -93,15 +96,11 @@ export default function CourseDetailScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     try {
-      const resp = await fetch(`${API_BASE_URL}/api/ai/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          courseId,
-          messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
-          mode: MODE_CHAT_MAP[activeMode],
-        }),
-      });
+      const resp = await postAi("/api/ai/chat", {
+        courseId,
+        messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
+        mode: MODE_CHAT_MAP[activeMode],
+      }, getToken);
 
       if (!resp.ok) {
         const errText = "Something went wrong. Please try again.";
@@ -113,6 +112,7 @@ export default function CourseDetailScreen() {
       if (!reader) throw new Error("No reader");
       const decoder = new TextDecoder();
       let accumulated = "";
+      let streamError: string | null = null;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -123,6 +123,7 @@ export default function CourseDetailScreen() {
           if (!line.startsWith("data: ")) continue;
           try {
             const parsed = JSON.parse(line.slice(6));
+            if (parsed.error) { streamError = parsed.error; break; }
             if (parsed.content) {
               accumulated += parsed.content;
               setStreamingContent(accumulated);
@@ -132,6 +133,7 @@ export default function CourseDetailScreen() {
         }
       }
 
+      if (streamError) throw new Error(streamError);
       if (accumulated.trim()) {
         setMessages((prev) => [...prev, { role: "assistant", content: accumulated, mode: activeMode }]);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -139,7 +141,13 @@ export default function CourseDetailScreen() {
         setMessages((prev) => [...prev, { role: "assistant", content: "No response received. Please try again." }]);
       }
     } catch (err) {
-      setMessages((prev) => [...prev, { role: "assistant", content: "Something went wrong. Please try again." }]);
+      if (err instanceof AiLimitError) {
+        setMessages((prev) => [...prev, { role: "assistant", content: err.message }]);
+        showLimitAlert(err, router);
+      } else {
+        const msg = err instanceof Error && err.message !== "No reader" ? err.message : "Something went wrong. Please try again.";
+        setMessages((prev) => [...prev, { role: "assistant", content: msg }]);
+      }
     } finally {
       setIsStreaming(false);
       setStreamingContent("");
@@ -164,15 +172,13 @@ export default function CourseDetailScreen() {
     setQuizDone(false);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
-      const resp = await fetch(`${API_BASE_URL}/api/ai/quiz`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content, courseId }),
-      });
+      const resp = await postAi("/api/ai/quiz", { content, courseId }, getToken);
+      if (!resp.ok) throw new Error("Quiz failed");
       const data = await resp.json() as { questions?: QuizQuestion[] };
       setQuizQuestions(data.questions ?? []);
-    } catch {
-      Alert.alert("Quiz failed", "Couldn't generate a quiz. Try again.");
+    } catch (err) {
+      if (err instanceof AiLimitError) showLimitAlert(err, router);
+      else Alert.alert("Quiz failed", "Couldn't generate a quiz. Try again.");
       setShowQuiz(false);
     } finally {
       setQuizLoading(false);
@@ -212,15 +218,11 @@ export default function CourseDetailScreen() {
     setIsStreaming(true);
     setStreamingContent("");
     try {
-      const resp = await fetch(`${API_BASE_URL}/api/ai/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          courseId,
-          messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
-          mode: MODE_CHAT_MAP[modeToUse],
-        }),
-      });
+      const resp = await postAi("/api/ai/chat", {
+        courseId,
+        messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
+        mode: MODE_CHAT_MAP[modeToUse],
+      }, getToken);
       if (!resp.ok) {
         const errText = "Something went wrong. Please try again.";
         setMessages((prev) => [...prev, { role: "assistant", content: errText }]);
@@ -230,6 +232,7 @@ export default function CourseDetailScreen() {
       if (!reader) throw new Error("No reader");
       const decoder = new TextDecoder();
       let accumulated = "";
+      let streamError: string | null = null;
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -238,18 +241,26 @@ export default function CourseDetailScreen() {
           if (!line.startsWith("data: ")) continue;
           try {
             const parsed = JSON.parse(line.slice(6));
+            if (parsed.error) { streamError = parsed.error; break; }
             if (parsed.content) { accumulated += parsed.content; setStreamingContent(accumulated); }
             if (parsed.done) break;
           } catch {}
         }
       }
+      if (streamError) throw new Error(streamError);
       if (accumulated.trim()) {
         setMessages((prev) => [...prev, { role: "assistant", content: accumulated, mode: modeToUse }]);
       } else {
         setMessages((prev) => [...prev, { role: "assistant", content: "No response received. Please try again." }]);
       }
-    } catch {
-      setMessages((prev) => [...prev, { role: "assistant", content: "Something went wrong. Please try again." }]);
+    } catch (err) {
+      if (err instanceof AiLimitError) {
+        setMessages((prev) => [...prev, { role: "assistant", content: err.message }]);
+        showLimitAlert(err, router);
+      } else {
+        const msg = err instanceof Error && err.message !== "No reader" ? err.message : "Something went wrong. Please try again.";
+        setMessages((prev) => [...prev, { role: "assistant", content: msg }]);
+      }
     } finally {
       setIsStreaming(false);
       setStreamingContent("");
@@ -277,11 +288,7 @@ export default function CourseDetailScreen() {
   };
 
   const extractTextFromImage = async (base64: string, mimeType: string) => {
-    const resp = await fetch(`${API_BASE_URL}/api/ai/scan`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imageBase64: base64, mimeType }),
-    });
+    const resp = await postAi("/api/ai/scan", { imageBase64: base64, mimeType }, getToken);
     const data = await resp.json() as { text?: string; error?: string };
     if (!resp.ok || !data.text) throw new Error(data.error ?? "Extraction failed");
     return data.text;
@@ -303,8 +310,9 @@ export default function CourseDetailScreen() {
     try {
       const text = await extractTextFromImage(result.assets[0].base64, "image/jpeg");
       await autoSaveMaterial("Scanned notes", text, "notes");
-    } catch {
-      Alert.alert("Scan failed", "Couldn't extract text from the image. Try again.");
+    } catch (err) {
+      if (err instanceof AiLimitError) showLimitAlert(err, router);
+      else Alert.alert("Scan failed", "Couldn't extract text from the image. Try again.");
     } finally {
       setScanning(false);
     }
@@ -326,8 +334,9 @@ export default function CourseDetailScreen() {
     try {
       const text = await extractTextFromImage(result.assets[0].base64, "image/jpeg");
       await autoSaveMaterial("Uploaded notes", text, "notes");
-    } catch {
-      Alert.alert("Upload failed", "Couldn't extract text from the image. Try again.");
+    } catch (err) {
+      if (err instanceof AiLimitError) showLimitAlert(err, router);
+      else Alert.alert("Upload failed", "Couldn't extract text from the image. Try again.");
     } finally {
       setScanning(false);
     }
@@ -349,6 +358,7 @@ export default function CourseDetailScreen() {
       formData.append("materialType", "pdf");
       const resp = await fetch(`${API_BASE_URL}/api/courses/${courseId}/materials/upload`, {
         method: "POST",
+        headers: await authHeaders(getToken),
         body: formData,
       });
       const data = await resp.json() as { content?: string; error?: string };

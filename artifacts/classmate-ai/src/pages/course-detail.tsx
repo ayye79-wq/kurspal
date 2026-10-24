@@ -7,7 +7,8 @@ import {
   useCreateAssignment,
   getGetCourseQueryKey,
 } from "@workspace/api-client-react";
-import { useSSE } from "@/hooks/use-sse";
+import { useSSE, DailyLimitError } from "@/hooks/use-sse";
+import { PaywallModal, type PaywallFeature } from "@/components/paywall-modal";
 import { useProgress } from "@/hooks/use-progress";
 import { ExplainOutput } from "@/components/explain-output";
 import { QuizOutput, type QuizQuestion } from "@/components/quiz-output";
@@ -75,6 +76,12 @@ export default function CourseDetailPage() {
   const [activeMode, setActiveMode] = useState<Mode>("chat");
   const [suggestedMode, setSuggestedMode] = useState<Mode | null>(null);
   const { stream: chatStream, isStreaming, content: streamingContent } = useSSE();
+  const [paywall, setPaywall] = useState<PaywallFeature | null>(null);
+  const limitHit = (e: unknown) => {
+    if (!(e instanceof DailyLimitError)) return false;
+    setPaywall("explain_limit");
+    return true;
+  };
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
@@ -146,6 +153,7 @@ export default function CourseDetailPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ imageBase64, mimeType }),
         });
+        if (res.status === 429) throw new DailyLimitError();
         if (!res.ok) throw new Error("scan failed");
         const { text } = await res.json();
         setScanPages(prev => {
@@ -157,7 +165,8 @@ export default function CourseDetailPage() {
           );
           return updated;
         });
-      } catch {
+      } catch (e) {
+        if (limitHit(e)) { if (scanPages.length === 0) closeScan(); return; }
         toast({ title: "Couldn't read the image", description: "Try a clearer photo", variant: "destructive" });
         if (scanPages.length === 0) closeScan();
       } finally {
@@ -209,7 +218,7 @@ export default function CourseDetailPage() {
       setMessages([...newMessages, { role: "assistant", content: reply }]);
       trackSession();
     } catch (e: any) {
-      if (e?.name !== "AbortError") {
+      if (e?.name !== "AbortError" && !limitHit(e)) {
         toast({ title: "Something went wrong", variant: "destructive" });
       }
     }
@@ -244,8 +253,8 @@ export default function CourseDetailPage() {
       });
       setMessages([...newMessages, { role: "assistant", content: reply }]);
       trackSession();
-    } catch {
-      toast({ title: "Something went wrong", variant: "destructive" });
+    } catch (e) {
+      if (!limitHit(e)) toast({ title: "Something went wrong", variant: "destructive" });
     }
   };
 
@@ -266,10 +275,12 @@ export default function CourseDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content, courseId }),
       });
+      if (res.status === 429) throw new DailyLimitError();
       if (!res.ok) throw new Error("quiz failed");
       const data = await res.json();
       setQuizData(data.questions ?? []);
-    } catch {
+    } catch (e) {
+      if (limitHit(e)) return;
       toast({ title: "Couldn't generate quiz", description: "Try again in a moment", variant: "destructive" });
     } finally {
       setQuizLoading(false);
@@ -290,8 +301,8 @@ export default function CourseDetailPage() {
         messages: newMessages.map(m => ({ role: m.role, content: m.content })),
       });
       setMessages([...newMessages, { role: "assistant", content: reply }]);
-    } catch {
-      toast({ title: "Something went wrong", variant: "destructive" });
+    } catch (e) {
+      if (!limitHit(e)) toast({ title: "Something went wrong", variant: "destructive" });
     }
   };
 
@@ -309,8 +320,8 @@ export default function CourseDetailPage() {
         messages: newMessages.map(m => ({ role: m.role, content: m.content })),
       });
       setMessages([...newMessages, { role: "assistant", content: reply }]);
-    } catch {
-      toast({ title: "Something went wrong", variant: "destructive" });
+    } catch (e) {
+      if (!limitHit(e)) toast({ title: "Something went wrong", variant: "destructive" });
     }
   };
 
@@ -414,6 +425,7 @@ export default function CourseDetailPage() {
 
   return (
     <div className="max-w-2xl space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-16">
+      <PaywallModal feature={paywall} onClose={() => setPaywall(null)} />
 
       {/* Back */}
       <Link href="/courses" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground gap-1 transition-colors">

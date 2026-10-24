@@ -43,3 +43,11 @@ services:
         sync: false
       - key: VITE_CLERK_PROXY_URL
         sync: false
+      # Shared secret pasted into RevenueCat's webhook "Authorization header" field.
+      - key: REVENUECAT_WEBHOOK_AUTH
+        sync: false
+      # RevenueCat secret API key (sk_…); lets the server confirm store purchases instantly.
+      - key: REVENUECAT_SECRET_KEY
+        sync: false
+      - key: FREE_DAILY_AI_LIMIT
+        value: "10"
