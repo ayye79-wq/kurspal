@@ -9,14 +9,16 @@ function describeKey(value: string | undefined): string {
 
 async function getCredentials(): Promise<{ publishableKey: string; secretKey: string }> {
   // Keys straight from the Stripe dashboard win over the Replit connector.
-  const secretKey = process.env.STRIPE_SECRET_KEY?.trim();
-  const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY?.trim();
+  // Replit withholds STRIPE_* deployment secrets from the app, so on Replit
+  // the keys are stored under KURSPAL_STRIPE_* instead.
+  const secretKey = (process.env.KURSPAL_STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY)?.trim();
+  const publishableKey = (process.env.KURSPAL_STRIPE_PUBLISHABLE_KEY || process.env.STRIPE_PUBLISHABLE_KEY)?.trim();
   if (secretKey && publishableKey) {
     return { secretKey, publishableKey };
   }
   if (secretKey || publishableKey) {
     throw new Error(
-      `Stripe keys incomplete: STRIPE_SECRET_KEY is ${describeKey(secretKey)}, STRIPE_PUBLISHABLE_KEY is ${describeKey(publishableKey)}.`,
+      `Stripe keys incomplete: secret key is ${describeKey(secretKey)}, publishable key is ${describeKey(publishableKey)}.`,
     );
   }
 
@@ -48,7 +50,7 @@ async function getCredentials(): Promise<{ publishableKey: string; secretKey: st
 
   if (!resp.ok) {
     throw new Error(
-      `Failed to fetch Stripe credentials: ${resp.status} ${resp.statusText} (STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY are not set on this server)`,
+      `Failed to fetch Stripe credentials: ${resp.status} ${resp.statusText} (no KURSPAL_STRIPE_* or STRIPE_* keys are set on this server)`,
     );
   }
 
