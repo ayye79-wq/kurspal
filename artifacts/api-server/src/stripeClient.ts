@@ -1,13 +1,23 @@
 import Stripe from "stripe";
 import { StripeSync } from "stripe-replit-sync";
 
+// Describes a key without revealing it, e.g. "sk_live… (107 chars)" or "missing".
+function describeKey(value: string | undefined): string {
+  if (!value) return "missing";
+  return `${value.slice(0, value.indexOf("_", 3) + 1 || 3)}… (${value.length} chars)`;
+}
+
 async function getCredentials(): Promise<{ publishableKey: string; secretKey: string }> {
-  // Off Replit, keys come straight from the Stripe dashboard.
-  if (process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PUBLISHABLE_KEY) {
-    return {
-      secretKey: process.env.STRIPE_SECRET_KEY,
-      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
-    };
+  // Keys straight from the Stripe dashboard win over the Replit connector.
+  const secretKey = process.env.STRIPE_SECRET_KEY?.trim();
+  const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY?.trim();
+  if (secretKey && publishableKey) {
+    return { secretKey, publishableKey };
+  }
+  if (secretKey || publishableKey) {
+    throw new Error(
+      `Stripe keys incomplete: STRIPE_SECRET_KEY is ${describeKey(secretKey)}, STRIPE_PUBLISHABLE_KEY is ${describeKey(publishableKey)}.`,
+    );
   }
 
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
@@ -37,7 +47,9 @@ async function getCredentials(): Promise<{ publishableKey: string; secretKey: st
   });
 
   if (!resp.ok) {
-    throw new Error(`Failed to fetch Stripe credentials: ${resp.status} ${resp.statusText}`);
+    throw new Error(
+      `Failed to fetch Stripe credentials: ${resp.status} ${resp.statusText} (STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY are not set on this server)`,
+    );
   }
 
   const data = await resp.json();
