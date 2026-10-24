@@ -1,10 +1,54 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { FileText, Sparkles, Plus, Menu, X, Home, Edit2, Bookmark, User, LogOut } from "lucide-react";
+import { FileText, Sparkles, Plus, Menu, X, Home, Edit2, Bookmark, User, LogOut, Crown } from "lucide-react";
 import { useListCourses } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProgress } from "@/hooks/use-progress";
 import { useUser, useClerk } from "@clerk/react";
+import { PaywallModal } from "@/components/paywall-modal";
+
+type Usage = { isPremium: boolean; used: number; limit: number | null };
+
+// Shows today's free usage with a Get Premium button, or a Premium badge once paid.
+function PremiumCard() {
+  const [usage, setUsage] = useState<Usage | null>(null);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/me/usage", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setUsage)
+      .catch(() => {});
+  }, []);
+
+  if (!usage) return null;
+
+  if (usage.isPremium) {
+    return (
+      <div className="mx-1 mt-3 px-3 py-2 rounded-xl text-xs flex items-center gap-2" style={{ background: "hsl(256 90% 67% / 0.08)", border: "1px solid hsl(256 90% 67% / 0.18)", color: "hsl(256 90% 82%)" }}>
+        <Crown className="w-3.5 h-3.5 shrink-0" />
+        Kurspal Premium · unlimited
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-1 mt-3 px-3 py-3 rounded-xl text-xs flex flex-col gap-2" style={{ background: "hsl(256 90% 67% / 0.08)", border: "1px solid hsl(256 90% 67% / 0.18)" }}>
+      <p style={{ color: "hsl(220 12% 80%)" }}>
+        {Math.min(usage.used, usage.limit ?? 0)} of {usage.limit} free AI requests used today
+      </p>
+      <button
+        onClick={() => setOpen(true)}
+        className="flex items-center justify-center gap-1.5 rounded-lg py-2 font-semibold text-white"
+        style={{ background: "linear-gradient(135deg, #7c5cfc 0%, #5e3fde 100%)" }}
+      >
+        <Crown className="w-3.5 h-3.5" />
+        Get Premium
+      </button>
+      <PaywallModal feature={open ? "upgrade" : null} onClose={() => setOpen(false)} />
+    </div>
+  );
+}
 
 function SidebarContent({
   courses,
@@ -106,6 +150,8 @@ function SidebarContent({
           </Link>
         );
       })}
+
+      <PremiumCard />
 
       {/* Today's progress */}
       {sessions > 0 && (

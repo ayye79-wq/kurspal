@@ -4,9 +4,14 @@ import { Brain, GraduationCap, Sparkles, ScanLine, Mic, Zap, Check, X, Loader2 }
 import { useAuth, useClerk } from "@clerk/react";
 import { useCheckout, PRICE_MONTHLY, PRICE_ANNUAL } from "@/hooks/use-checkout";
 
-export type PaywallFeature = "explain_limit" | "quiz" | "study-guide" | "multi-scan" | "tone";
+export type PaywallFeature = "upgrade" | "explain_limit" | "quiz" | "study-guide" | "multi-scan" | "tone";
 
 const FEATURE_COPY: Record<PaywallFeature, { icon: React.ReactNode; headline: string; sub: string }> = {
+  upgrade: {
+    icon: <Sparkles className="w-6 h-6" />,
+    headline: "Unlock Kurspal Premium",
+    sub: "Unlimited AI help for every class, plus quizzes and study guides. Cancel anytime.",
+  },
   explain_limit: {
     icon: <Sparkles className="w-6 h-6" />,
     headline: "You're using this a lot 👀",

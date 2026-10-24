@@ -20,7 +20,7 @@ const FAQS = [
   },
   {
     q: "I hit my daily limit — what now?",
-    a: "Free accounts get 5 AI requests per day. Upgrade to Premium for unlimited usage, or wait until midnight (your local time) for the limit to reset.",
+    a: "Free accounts get 10 AI requests per day. Upgrade to Premium for unlimited usage, or wait for the daily reset at midnight UTC (8 pm Eastern).",
   },
   {
     q: "Can I delete my account?",
