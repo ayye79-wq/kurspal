@@ -28,7 +28,7 @@
       },
       "env": {
         "EXPO_PUBLIC_DOMAIN": "kurspal.com",
-        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_Y2l2aWwta3JpbGwtNTUuY2xlcmsuYWNjb3VudHMuZGV2JA",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsud3d3Lmt1cnNwYWwuY29tJA",
         "EXPO_PUBLIC_CLERK_PROXY_URL": "https://kurspal.com/api/__clerk"
       }
     }
