@@ -36,7 +36,7 @@
     },
     "android": {
       "package": "com.kurspal.app",
-      "versionCode": 8,
+      "versionCode": 9,
       "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
