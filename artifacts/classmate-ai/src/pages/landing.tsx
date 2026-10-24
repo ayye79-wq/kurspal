@@ -138,7 +138,7 @@ export default function LandingPage() {
               >
                 Start your first assignment free <ArrowRight className="w-4 h-4" />
               </button>
-              <p className="text-xs" style={{ color: "hsl(220 10% 56%)" }}>No credit card · 7-day free trial</p>
+              <p className="text-xs" style={{ color: "hsl(220 10% 56%)" }}>Free to start · no credit card</p>
             </div>
 
             {/* Trust strip */}
@@ -300,7 +300,7 @@ export default function LandingPage() {
           <div className="text-center mb-8">
             <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: "hsl(256 90% 67%)" }}>Simple pricing</p>
             <h2 className="text-2xl sm:text-3xl font-bold text-white">Start free. Upgrade when it clicks.</h2>
-            <p className="text-sm mt-2" style={{ color: "hsl(220 10% 62%)" }}>7-day free trial · no credit card · cancel anytime</p>
+            <p className="text-sm mt-2" style={{ color: "hsl(220 10% 62%)" }}>Free plan: 10 AI requests a day · Premium starts with a 7-day free trial · cancel anytime</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto">

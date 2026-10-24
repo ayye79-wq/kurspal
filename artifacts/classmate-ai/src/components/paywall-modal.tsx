@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Brain, GraduationCap, Sparkles, ScanLine, Mic, Zap, Check, X, Loader2 } from "lucide-react";
 import { useAuth, useClerk } from "@clerk/react";
@@ -58,6 +58,16 @@ export function PaywallModal({ feature, onClose }: PaywallModalProps) {
   const { openSignIn } = useClerk();
   const { startCheckout, loading, error } = useCheckout();
   const [billing, setBilling] = useState<"monthly" | "annual">("annual");
+  // Signed-out visitors are new by definition; signed-in users ask the server.
+  const [trialEligible, setTrialEligible] = useState(true);
+
+  useEffect(() => {
+    if (!feature || !isSignedIn) return;
+    fetch("/api/me/usage", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((u) => { if (u) setTrialEligible(!!u.trialEligible); })
+      .catch(() => {});
+  }, [feature, isSignedIn]);
 
   if (!feature) return null;
 
@@ -131,7 +141,9 @@ export function PaywallModal({ feature, onClose }: PaywallModalProps) {
             <div>
               <p className="text-sm font-bold text-foreground">Kurspal Premium</p>
               <p className="text-[11px] text-muted-foreground">
-                {isAnnual ? "$3.33/mo · billed as $39.99/year" : "Billed monthly · cancel anytime"}
+                {trialEligible
+                  ? `7 days free, then ${isAnnual ? "$39.99/year" : "$4.99/month"} · cancel anytime`
+                  : isAnnual ? "$3.33/mo · billed as $39.99/year" : "Billed monthly · cancel anytime"}
               </p>
             </div>
             <div className="text-right">
@@ -162,6 +174,8 @@ export function PaywallModal({ feature, onClose }: PaywallModalProps) {
               <><Loader2 className="w-4 h-4 animate-spin" /> Taking you to checkout…</>
             ) : !isSignedIn ? (
               "Sign in to unlock Premium →"
+            ) : trialEligible ? (
+              "Start 7-day free trial →"
             ) : (
               `Get Premium · ${isAnnual ? "$39.99/yr" : "$4.99/mo"} →`
             )}

@@ -72,6 +72,9 @@ router.post("/stripe/checkout", requireAuth, async (req: Request, res: Response)
       customerId = customer.id;
     }
 
+    // First-time subscribers get 7 days free; the card is charged when the trial ends.
+    const trialEligible = !!price.recurring && !user.stripeSubscriptionId;
+
     // userId in metadata lets the webhook flip isPremium
     const host = `${req.protocol}://${req.get("host")}`;
     const session = await stripe.checkout.sessions.create({
@@ -82,6 +85,7 @@ router.post("/stripe/checkout", requireAuth, async (req: Request, res: Response)
       success_url: `${host}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${host}/checkout/cancel`,
       metadata: { userId, priceId },
+      ...(trialEligible ? { subscription_data: { trial_period_days: 7 } } : {}),
     });
 
     res.json({ url: session.url });

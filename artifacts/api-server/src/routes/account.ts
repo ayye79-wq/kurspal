@@ -17,6 +17,7 @@ router.get("/me/usage", requireAuth, async (req, res): Promise<void> => {
     premiumExpiresAt: user.premiumExpiresAt,
     used: await getUsageToday(userId),
     limit: isPremium ? null : FREE_DAILY_AI_LIMIT,
+    trialEligible: !user.stripeSubscriptionId,
   });
 });
 
