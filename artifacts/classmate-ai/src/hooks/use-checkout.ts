@@ -1,7 +1,7 @@
 import { useState } from "react";
 
-export const PRICE_MONTHLY = "price_1TTShoPSK0ydTqRoaLrUC35S";
-export const PRICE_ANNUAL = "price_1TTShsPSK0ydTqRonwnWj2dz";
+export const PRICE_MONTHLY = "price_1UUCs2BIrDfV6LA8OV1BdbHf";
+export const PRICE_ANNUAL = "price_1UUCsrBIrDfV6LA8l4OgpIs1";
 
 export function useCheckout() {
   const [loading, setLoading] = useState(false);
