@@ -11,6 +11,7 @@ import { useSubscription } from "@/lib/revenuecat";
 import { useGetToneProfile, getGetToneProfileQueryKey } from "@workspace/api-client-react";
 import { useAuth } from "@clerk/expo";
 import { API_BASE_URL } from "@/lib/config";
+import Constants from "expo-constants";
 
 export default function SettingsScreen() {
   const colors = useColors();
@@ -220,7 +221,7 @@ export default function SettingsScreen() {
         <View style={s.row}>
           <Feather name="info" size={16} color={colors.foreground} />
           <View style={s.rowContent}>
-            <Text style={s.rowText}>Version 1.0.1</Text>
+            <Text style={s.rowText}>Version {Constants.expoConfig?.version}</Text>
           </View>
         </View>
       </View>
