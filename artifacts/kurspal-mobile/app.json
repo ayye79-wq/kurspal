@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.kurspal.app",
-      "buildNumber": "23",
+      "buildNumber": "24",
       "usesAppleSignIn": true,
       "infoPlist": {
         "NSCameraUsageDescription": "Kurspal uses your camera to scan handwritten notes and printed materials, extracting text to add as course materials.",
