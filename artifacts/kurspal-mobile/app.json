@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.kurspal.app",
-      "buildNumber": "24",
+      "buildNumber": "25",
       "usesAppleSignIn": true,
       "infoPlist": {
         "NSCameraUsageDescription": "Kurspal uses your camera to scan handwritten notes and printed materials, extracting text to add as course materials.",
@@ -36,7 +36,7 @@
     },
     "android": {
       "package": "com.kurspal.app",
-      "versionCode": 9,
+      "versionCode": 10,
       "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
