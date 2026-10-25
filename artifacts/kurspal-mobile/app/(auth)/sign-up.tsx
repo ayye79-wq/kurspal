@@ -33,20 +33,27 @@ export default function SignUpScreen() {
 
   const isFetching = fetchStatus === "fetching";
 
+  // Clerk's sign-up methods return their error instead of throwing.
+  const errorText = (e: any, fallback: string) =>
+    e?.errors?.[0]?.longMessage ?? e?.errors?.[0]?.message ?? e?.longMessage ?? e?.message ?? fallback;
+
   const handleSignUp = async () => {
     setLoading(true);
     setGeneralError("");
     try {
-      await (signUp as any).create({ emailAddress: email, password });
-      await (signUp as any).prepareEmailAddressVerification({ strategy: "email_code" });
+      const { error: pwError } = await signUp.password({ emailAddress: email.trim(), password });
+      if (pwError) {
+        setGeneralError(errorText(pwError, "Sign-up failed. Please try again."));
+        return;
+      }
+      const { error: sendError } = await signUp.verifications.sendEmailCode();
+      if (sendError) {
+        setGeneralError(errorText(sendError, "Couldn't send the verification code."));
+        return;
+      }
       setPendingVerification(true);
     } catch (e: any) {
-      const msg =
-        e?.errors?.[0]?.longMessage ??
-        e?.errors?.[0]?.message ??
-        e?.message ??
-        "Sign-up failed. Please try again.";
-      setGeneralError(msg);
+      setGeneralError(errorText(e, "Sign-up failed. Check your connection and try again."));
     } finally {
       setLoading(false);
     }
@@ -56,23 +63,21 @@ export default function SignUpScreen() {
     setLoading(true);
     setGeneralError("");
     try {
-      const result = await (signUp as any).attemptEmailAddressVerification({ code });
-      if (result.status === "complete") {
-        await setActive({ session: result.createdSessionId });
+      const { error: codeError } = await signUp.verifications.verifyEmailCode({ code: code.trim() });
+      if (codeError) {
+        setGeneralError(errorText(codeError, "That code didn't work. Check it and try again."));
+      } else if (signUp.status === "complete") {
+        await setActive({ session: signUp.createdSessionId });
         if (returnTo === "paywall") {
           router.replace("/paywall" as any);
         } else {
           router.replace("/(tabs)" as any);
         }
       } else {
-        setGeneralError("Verification failed. Please check the code and try again.");
+        setGeneralError(`Sign-up needs another step (${signUp.status}). Please try again or contact support.`);
       }
     } catch (e: any) {
-      const msg =
-        e?.errors?.[0]?.longMessage ??
-        e?.errors?.[0]?.message ??
-        "Verification failed.";
-      setGeneralError(msg);
+      setGeneralError(errorText(e, "Verification failed. Check your connection and try again."));
     } finally {
       setLoading(false);
     }

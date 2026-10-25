@@ -30,30 +30,80 @@ export default function SignInScreen() {
 
   const isFetching = fetchStatus === "fetching";
 
+  // Set once an emailed code is pending: "signin" when the student chose to sign in
+  // by code (works for accounts made with Google), "verify" when Clerk asks for one
+  // after the password (a new device, or two-step verification).
+  const [codeMode, setCodeMode] = useState<"signin" | "verify" | null>(null);
+  const needsCode = codeMode !== null;
+  const [code, setCode] = useState("");
+
+  // Clerk's sign-in methods return their error instead of throwing.
+  const errorText = (e: any, fallback: string) =>
+    e?.errors?.[0]?.longMessage ?? e?.errors?.[0]?.message ?? e?.longMessage ?? e?.message ?? fallback;
+
+  const finish = async () => {
+    await setActive({ session: signIn.createdSessionId });
+    router.replace("/(tabs)/" as any);
+  };
+
   const handleSignIn = async () => {
     setLoading(true);
     setError("");
     try {
-      await signIn.password({ emailAddress: email, password });
-      if (signIn.status === "complete") {
-        await setActive({ session: signIn.createdSessionId });
-        router.replace("/(tabs)/" as any);
+      const { error: pwError } = await signIn.password({ emailAddress: email.trim(), password });
+      if (pwError) {
+        setError(errorText(pwError, "Wrong email or password."));
+      } else if (signIn.status === "complete") {
+        await finish();
+      } else if (signIn.status === "needs_client_trust" || signIn.status === "needs_second_factor") {
+        const { error: sendError } = await signIn.mfa.sendEmailCode();
+        if (sendError) setError(errorText(sendError, "Couldn't send the verification code."));
+        else setCodeMode("verify");
       } else {
-        setError("Sign-in failed. Please try again.");
+        setError(`Sign-in needs another step (${signIn.status}). Please try again or contact support.`);
       }
     } catch (e: any) {
-      const msg =
-        e?.errors?.[0]?.longMessage ??
-        e?.errors?.[0]?.message ??
-        e?.message ??
-        "Sign-in failed.";
-      setError(msg);
+      setError(errorText(e, "Sign-in failed. Check your connection and try again."));
     } finally {
       setLoading(false);
     }
   };
 
-  const isDisabled = !email || !password || loading || isFetching;
+  const handleSendSignInCode = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const { error: sendError } = await signIn.emailCode.sendCode({ emailAddress: email.trim() });
+      if (sendError) setError(errorText(sendError, "Couldn't send a sign-in code to that email."));
+      else setCodeMode("signin");
+    } catch (e: any) {
+      setError(errorText(e, "Couldn't send a sign-in code. Check your connection and try again."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const { error: codeError } =
+        codeMode === "signin"
+          ? await signIn.emailCode.verifyCode({ code: code.trim() })
+          : await signIn.mfa.verifyEmailCode({ code: code.trim() });
+      if (codeError) setError(errorText(codeError, "That code didn't work. Check it and try again."));
+      else if (signIn.status === "complete") await finish();
+      else setError(`Sign-in needs another step (${signIn.status}). Please try again or contact support.`);
+    } catch (e: any) {
+      setError(errorText(e, "Couldn't verify the code. Check your connection and try again."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const isDisabled = needsCode
+    ? code.trim().length < 6 || loading || isFetching
+    : !email || !password || loading || isFetching;
 
   return (
     <KeyboardAvoidingView
@@ -73,9 +123,34 @@ export default function SignInScreen() {
           </LinearGradient>
         </View>
 
-        <Text style={s.title}>Welcome back</Text>
-        <Text style={s.subtitle}>Sign in to continue studying</Text>
+        <Text style={s.title}>{needsCode ? "Check your email" : "Welcome back"}</Text>
+        <Text style={s.subtitle}>
+          {needsCode ? `We sent a 6-digit code to ${email.trim()}` : "Sign in to continue studying"}
+        </Text>
 
+        {needsCode ? (
+          <View style={s.form}>
+            <Text style={s.label}>Verification code</Text>
+            <TextInput
+              style={s.input}
+              value={code}
+              onChangeText={setCode}
+              placeholder="123456"
+              placeholderTextColor="#6b7280"
+              keyboardType="number-pad"
+              textContentType="oneTimeCode"
+              autoComplete="one-time-code"
+              maxLength={6}
+              autoFocus
+            />
+            <TouchableOpacity
+              onPress={() => { setCodeMode(null); setCode(""); setError(""); }}
+              style={{ marginTop: 4 }}
+            >
+              <Text style={s.footerLink}>Use a different account</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
         <View style={s.form}>
           <Text style={s.label}>Email</Text>
           <TextInput
@@ -117,21 +192,32 @@ export default function SignInScreen() {
             <Text style={s.errorText}>{errors.fields.password.message}</Text>
           )}
         </View>
+        )}
 
         {error ? <Text style={s.errorText}>{error}</Text> : null}
 
         <TouchableOpacity
           style={[s.btn, isDisabled && s.btnDisabled]}
-          onPress={handleSignIn}
+          onPress={needsCode ? handleVerifyCode : handleSignIn}
           disabled={isDisabled}
           activeOpacity={0.85}
         >
           {loading || isFetching ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={s.btnText}>Sign in</Text>
+            <Text style={s.btnText}>{needsCode ? "Verify and sign in" : "Sign in"}</Text>
           )}
         </TouchableOpacity>
+
+        {!needsCode && (
+          <TouchableOpacity
+            onPress={handleSendSignInCode}
+            disabled={!email.trim() || loading || isFetching}
+            style={{ alignItems: "center", paddingVertical: 8, opacity: email.trim() ? 1 : 0.5 }}
+          >
+            <Text style={s.footerLink}>Forgot password or signed up with Google? Email me a code</Text>
+          </TouchableOpacity>
+        )}
 
         <View style={s.footer}>
           <Text style={s.footerText}>Don't have an account? </Text>
