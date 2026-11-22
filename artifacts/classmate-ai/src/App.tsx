@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ClerkProvider, SignIn, SignUp, useClerk, useAuth } from "@clerk/react";
 import { MonitoringIdentity } from "./lib/monitoring";
-import { publishableKeyFromHost } from "@clerk/react/internal";
 import { dark } from "@clerk/themes";
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
@@ -25,10 +24,9 @@ import SupportPage from "@/pages/support";
 import DeleteAccountPage from "@/pages/delete-account";
 import LandingPage from "@/pages/landing";
 
-const clerkPubKey = publishableKeyFromHost(
-  window.location.hostname,
-  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
-);
+// The live instance's own key. Deriving it from the page host pointed
+// kurspal.com at clerk.kurspal.com, which the instance doesn't serve.
+const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");

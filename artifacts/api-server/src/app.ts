@@ -5,7 +5,6 @@ import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import { clerkMiddleware } from "@clerk/express";
-import { publishableKeyFromHost } from "@clerk/shared/keys";
 import {
   CLERK_PROXY_PATH,
   clerkProxyMiddleware,
@@ -85,11 +84,15 @@ app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
 app.use(
+  // Always the instance's own key: deriving one from the request host made
+  // kurspal.com send browsers to clerk.kurspal.com, which the live instance doesn't serve.
+  // In production every Clerk call, including the sign-in handshake, goes through the
+  // proxy on whichever host the request came in on.
   clerkMiddleware((req) => ({
-    publishableKey: publishableKeyFromHost(
-      getClerkProxyHost(req) ?? "",
-      process.env.CLERK_PUBLISHABLE_KEY,
-    ),
+    publishableKey: process.env.CLERK_PUBLISHABLE_KEY,
+    ...(process.env.NODE_ENV === "production" && getClerkProxyHost(req)
+      ? { proxyUrl: `https://${getClerkProxyHost(req)}${CLERK_PROXY_PATH}` }
+      : {}),
   })),
 );
 
