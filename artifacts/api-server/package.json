@@ -28,6 +28,7 @@
     "pino": "^9",
     "pino-http": "^10",
     "posthog-node": "^5.74.0",
+    "stripe-replit-sync": "^1.0.0",
     "zod": "catalog:"
   },
   "devDependencies": {

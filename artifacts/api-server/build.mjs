@@ -70,6 +70,8 @@ async function buildAll() {
       "@parcel/watcher",
       // Sentry hooks into modules at runtime, so it must load from node_modules, not the bundle.
       "@sentry/*",
+      // Reads its migrations folder from disk at startup, so it must load from node_modules.
+      "stripe-replit-sync",
       "@tree-sitter/*",
       "aws-sdk",
       "classic-level",
