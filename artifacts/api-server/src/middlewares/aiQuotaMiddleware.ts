@@ -2,25 +2,45 @@ import type { Request, Response, NextFunction } from "express";
 import {
   FREE_DAILY_AI_LIMIT,
   ensureUserRow,
+  getUsageToday,
   hasActivePremium,
   incrementUsageToday,
+  rememberTimeZone,
   syncRevenueCatEntitlement,
+  syncStripeEntitlement,
 } from "../lib/premium";
+import { track } from "../lib/analytics";
 
-// Free accounts get FREE_DAILY_AI_LIMIT AI requests per UTC day; premium is unlimited.
-// Runs after requireAuth. The 429 status is what the web client already treats as
-// "daily limit reached"; the error text is written so older app builds can show it as-is.
+// Free accounts get FREE_DAILY_AI_LIMIT answered AI requests per local day; premium is unlimited.
+// Runs after requireAuth. A request only counts once the route marks it answered
+// (res.locals.aiAnswered), so an AI failure or a student leaving mid-answer costs nothing.
+// The 429 status is what the web client already treats as "daily limit reached"; the
+// error text is written so older app builds can show it as-is.
 export const requireAiQuota = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const userId = req.clerkUserId!;
   try {
     const user = await ensureUserRow(userId);
+    const timeZone = await rememberTimeZone(user, req.get("x-timezone"));
     if (hasActivePremium(user)) return next();
 
-    const used = await incrementUsageToday(userId);
-    if (used <= FREE_DAILY_AI_LIMIT) return next();
+    const used = await getUsageToday(userId, timeZone);
+    // At the limit, ask the stores directly before blocking: a paid user whose purchase
+    // webhook was missed gets premium restored instead of a paywall.
+    if (
+      used < FREE_DAILY_AI_LIMIT ||
+      (await syncStripeEntitlement(user)) ||
+      (await syncRevenueCatEntitlement(userId))
+    ) {
+      res.once("close", () => {
+        if (!res.locals.aiAnswered) return;
+        incrementUsageToday(userId, timeZone).catch((err) =>
+          req.log.error({ err }, "Failed to record AI usage"),
+        );
+      });
+      return next();
+    }
 
-    if (await syncRevenueCatEntitlement(userId)) return next();
-
+    track(userId, "daily_limit_hit", { limit: FREE_DAILY_AI_LIMIT, path: req.path });
     res.status(429).json({
       error: `You've used your ${FREE_DAILY_AI_LIMIT} free AI requests for today. Upgrade to Kurspal Premium for unlimited use, or come back tomorrow.`,
       code: "daily_limit",

@@ -3,6 +3,7 @@ import { getStripeSync, getUncachableStripeClient } from "./stripeClient";
 import { stripeStorage } from "./stripeStorage";
 import { db, usersTable } from "@workspace/db";
 import { logger } from "./lib/logger";
+import { track } from "./lib/analytics";
 
 export class WebhookHandlers {
   static async processWebhook(payload: Buffer, signature: string): Promise<void> {
@@ -15,12 +16,13 @@ export class WebhookHandlers {
     }
 
     const sync = await getStripeSync();
-    const event = await sync.processWebhook(payload, signature);
+    // Verifies the signature (throws if it's wrong) and mirrors the data into the stripe schema.
+    await sync.processWebhook(payload, signature);
 
-    // After sync, handle business logic
-    if (event) {
-      await WebhookHandlers.handleEvent(event);
-    }
+    // processWebhook resolves to nothing, so the verified payload is parsed here for
+    // Kurspal's own logic. (It used to test that return value, which skipped this step.)
+    const event = JSON.parse(payload.toString("utf8"));
+    await WebhookHandlers.handleEvent(event);
   }
 
   static async handleEvent(event: any): Promise<void> {
@@ -42,6 +44,7 @@ export class WebhookHandlers {
           const expiresAt = subscriptionId ? null : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
           await stripeStorage.setUserPremium(userId, true, expiresAt);
           logger.info({ userId, subscriptionId }, "Kurspal Premium activated");
+          track(userId, "premium_granted", { source: "stripe", subscription: !!subscriptionId });
         }
       }
 
@@ -85,7 +88,9 @@ export class WebhookHandlers {
         }
       }
     } catch (err: any) {
-      logger.error({ err }, "Error handling Stripe event");
+      logger.error({ err, type: event?.type }, "Error handling Stripe event");
+      // A non-2xx answer makes Stripe retry, so a database hiccup can't lose a purchase.
+      throw err;
     }
   }
 }
