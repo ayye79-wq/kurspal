@@ -203,16 +203,6 @@ describe("usage day", () => {
   });
 });
 
-describe("web host", () => {
-  it("sends website pages on the bare domain to www, but keeps the API there", async () => {
-    const page = await request(app).get("/courses/3?x=1").set("host", "kurspal.com");
-    expect(page.status).toBe(301);
-    expect(page.headers.location).toBe("https://www.kurspal.com/courses/3?x=1");
-    expect((await request(app).get("/api/healthz").set("host", "kurspal.com")).status).toBe(200);
-    expect((await request(app).get("/api/healthz").set("host", "www.kurspal.com")).status).toBe(200);
-  });
-});
-
 describe("request size", () => {
   it("rejects oversized JSON outside photo scan", async () => {
     const big = "x".repeat(2 * 1024 * 1024);

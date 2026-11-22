@@ -56,19 +56,6 @@ app.use(
 
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
-// The live Clerk instance belongs to www.kurspal.com, and the website derives its Clerk
-// address from the page's host (clerk.<host>), so pages must load on www. The API stays on
-// the bare domain too: the phone app, the Clerk proxy and the Stripe webhook call kurspal.com/api.
-const BARE_WEB_HOST = process.env.BARE_WEB_HOST ?? "kurspal.com";
-const CANONICAL_WEB_HOST = process.env.CANONICAL_WEB_HOST ?? "www.kurspal.com";
-app.use((req, res, next) => {
-  if ((req.method === "GET" || req.method === "HEAD") && req.hostname === BARE_WEB_HOST && !req.path.startsWith("/api")) {
-    res.redirect(301, `https://${CANONICAL_WEB_HOST}${req.originalUrl}`);
-    return;
-  }
-  next();
-});
-
 // Credentialed CORS only for Kurspal's own web origins. Native apps send no Origin header.
 const allowedOrigins = new Set(
   [
