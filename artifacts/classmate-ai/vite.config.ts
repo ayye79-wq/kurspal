@@ -47,6 +47,10 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Server routes must reach the server: without this the service worker answered
+        // navigations like the Clerk Google callback (/api/__clerk/v1/oauth_callback)
+        // with the app's index.html, so Google sign-in never completed.
+        navigateFallbackDenylist: [/^\/api\//],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         runtimeCaching: [
           {
