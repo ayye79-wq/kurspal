@@ -1,0 +1,50 @@
+# Runs on every push and pull request: type-checks the server, website and shared
+# libraries, runs the server tests, and builds what Render deploys. A red check means
+# don't deploy. The phone app isn't checked yet (it has older type errors to clear first).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: >-
+          pnpm install --frozen-lockfile
+          --filter "@workspace/api-server..."
+          --filter "@workspace/classmate-ai..."
+
+      - name: Type-check shared libraries
+        run: pnpm exec tsc --build lib/db lib/api-zod lib/integrations-openai-ai-server lib/api-client-react
+
+      - name: Type-check server
+        run: pnpm --filter @workspace/api-server run typecheck
+
+      - name: Type-check website
+        run: pnpm --filter @workspace/classmate-ai exec tsc -p tsconfig.json --noEmit
+
+      - name: Server tests (data isolation, free limit, purchases)
+        run: pnpm --filter @workspace/api-server run test
+
+      - name: Build server
+        run: pnpm --filter @workspace/api-server run build
+
+      - name: Build website
+        run: pnpm --filter @workspace/classmate-ai run build
+        env:
+          PORT: "3000"
+          BASE_PATH: /

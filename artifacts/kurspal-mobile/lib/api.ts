@@ -16,7 +16,12 @@ export class AiLimitError extends Error {
 // Native apps send no cookies, so every API call needs the Clerk session token.
 export async function authHeaders(getToken: GetToken): Promise<Record<string, string>> {
   const token = await getToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  // Lets the server reset the free AI limit at the student's local midnight.
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(zone ? { "X-Timezone": zone } : {}),
+  };
 }
 
 export async function postAi(path: string, body: object, getToken: GetToken) {

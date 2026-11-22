@@ -15,7 +15,7 @@ function PremiumCard() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    fetch("/api/me/usage", { credentials: "include" })
+    fetch("/api/me/usage", { credentials: "include", headers: { "X-Timezone": Intl.DateTimeFormat().resolvedOptions().timeZone } })
       .then((r) => (r.ok ? r.json() : null))
       .then(setUsage)
       .catch(() => {});

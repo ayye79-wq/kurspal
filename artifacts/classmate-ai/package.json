@@ -80,6 +80,8 @@
   "dependencies": {
     "@clerk/react": "^6.6.4",
     "@clerk/shared": "^4.12.0",
-    "@clerk/themes": "^2.4.57"
+    "@clerk/themes": "^2.4.57",
+    "@sentry/react": "^10.78.0",
+    "posthog-js": "^1.453.2"
   }
 }

@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { Router, type IRouter } from "express";
 import { applyStorePremium } from "../lib/premium";
+import { track } from "../lib/analytics";
 
 const router: IRouter = Router();
 
@@ -62,6 +63,9 @@ router.post("/revenuecat/webhook", async (req, res): Promise<void> => {
       const expiresAt = event.expiration_at_ms ? new Date(event.expiration_at_ms) : null;
       for (const id of userIds) await applyStorePremium(id, true, expiresAt);
       req.log.info({ type: event.type, userIds }, "Store premium granted");
+      if (event.type === "INITIAL_PURCHASE" || event.type === "NON_RENEWING_PURCHASE") {
+        for (const id of userIds) track(id, "premium_granted", { source: "store", event: event.type });
+      }
     } else if (event.type === "EXPIRATION" && touchesPremium) {
       for (const id of userIds) await applyStorePremium(id, false, null);
       req.log.info({ userIds }, "Store premium expired");

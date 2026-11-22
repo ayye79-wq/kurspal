@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ClerkProvider, SignIn, SignUp, useClerk, useAuth } from "@clerk/react";
+import { MonitoringIdentity } from "./lib/monitoring";
 import { publishableKeyFromHost } from "@clerk/react/internal";
 import { dark } from "@clerk/themes";
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from "wouter";
@@ -198,6 +199,7 @@ function ClerkProviderWithRoutes() {
     >
       <QueryClientProvider client={queryClient}>
         <ClerkQueryClientCacheInvalidator />
+        <MonitoringIdentity />
         <TooltipProvider>
           <Toaster />
           <Switch>

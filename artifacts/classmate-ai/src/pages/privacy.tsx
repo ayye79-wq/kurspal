@@ -121,7 +121,10 @@ function PrivacyContent() {
         <Li><strong className="text-foreground">OpenAI</strong> — to process AI requests (as described above).</Li>
         <Li><strong className="text-foreground">RevenueCat</strong> — to manage in-app subscriptions on mobile.</Li>
         <Li><strong className="text-foreground">Stripe</strong> — to process web subscription payments.</Li>
-        <Li><strong className="text-foreground">Replit</strong> — as our hosting and authentication provider.</Li>
+        <Li><strong className="text-foreground">Sentry</strong> — to receive crash and error reports so we can fix problems. Reports include technical details and your account ID, not your notes or drafts.</Li>
+        <Li><strong className="text-foreground">PostHog</strong> — to understand which features are used, tied to your account ID. We do not send the text of your notes, drafts or chats.</Li>
+        <Li><strong className="text-foreground">Clerk</strong> — to manage sign-in.</Li>
+        <Li><strong className="text-foreground">Replit, Render and Neon</strong> — to host the app and store its database.</Li>
         <Li><strong className="text-foreground">Legal requirements</strong> — if required by law or to protect the rights and safety of users.</Li>
       </ul>
 

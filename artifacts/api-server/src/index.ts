@@ -1,5 +1,7 @@
+import "./instrument";
 import app from "./app";
 import { logger } from "./lib/logger";
+import { shutdownAnalytics } from "./lib/analytics";
 import { runMigrations } from "stripe-replit-sync";
 import { getStripeSync } from "./stripeClient";
 
@@ -57,4 +59,9 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+});
+
+// Render sends SIGTERM before replacing the server on each deploy; send queued analytics first.
+process.once("SIGTERM", () => {
+  shutdownAnalytics().finally(() => process.exit(0));
 });

@@ -4,6 +4,7 @@ import { stripeService } from "../stripeService";
 import type { Request, Response } from "express";
 import { clerkClient } from "@clerk/express";
 import { requireAuth } from "../middlewares/clerkAuthMiddleware";
+import { track } from "../lib/analytics";
 
 const router: IRouter = Router();
 
@@ -52,17 +53,17 @@ router.post("/stripe/checkout", requireAuth, async (req: Request, res: Response)
 
     const { priceId } = req.body as { priceId?: unknown };
     if (typeof priceId !== "string" || !priceId) {
-      return res.status(400).json({ error: "priceId is required" });
+      { res.status(400).json({ error: "priceId is required" }); return; }
     }
 
     const stripe = await (await import("../stripeClient")).getUncachableStripeClient();
     const price = await stripe.prices.retrieve(priceId).catch(() => null);
-    if (!price || !price.active) return res.status(400).json({ error: "Unknown price" });
+    if (!price || !price.active) { res.status(400).json({ error: "Unknown price" }); return; }
 
     const clerkUser = await clerkClient.users.getUser(userId);
     const email = clerkUser.primaryEmailAddress?.emailAddress ?? null;
     const user = await stripeStorage.ensureUser(userId, email);
-    if (!user) return res.status(500).json({ error: "Could not load user" });
+    if (!user) { res.status(500).json({ error: "Could not load user" }); return; }
 
     // Get or create Stripe customer
     let customerId = user.stripeCustomerId;
@@ -88,6 +89,7 @@ router.post("/stripe/checkout", requireAuth, async (req: Request, res: Response)
       ...(trialEligible ? { subscription_data: { trial_period_days: 7 } } : {}),
     });
 
+    track(userId, "checkout_started", { price_id: priceId, platform: "web" });
     res.json({ url: session.url });
   } catch (err: any) {
     req.log.error({ err }, "Checkout failed");
@@ -98,7 +100,7 @@ router.post("/stripe/checkout", requireAuth, async (req: Request, res: Response)
 router.get("/stripe/subscription", requireAuth, async (req: Request, res: Response) => {
   try {
     const user = await stripeStorage.getUser(req.clerkUserId!);
-    if (!user?.stripeSubscriptionId) return res.json({ subscription: null });
+    if (!user?.stripeSubscriptionId) { res.json({ subscription: null }); return; }
 
     const subscription = await stripeStorage.getSubscription(user.stripeSubscriptionId);
     res.json({ subscription });

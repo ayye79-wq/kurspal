@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import * as Sentry from "@sentry/node";
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
@@ -77,8 +78,11 @@ app.use(
     },
   }),
 );
-app.use(express.json({ limit: "15mb" }));
-app.use(express.urlencoded({ extended: true, limit: "15mb" }));
+// Only photo scan sends large JSON (a base64 image); file uploads go through multer.
+// Everything else stays small so one oversized request can't tie up the server.
+app.use("/api/ai/scan", express.json({ limit: "15mb" }));
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
 app.use(
   clerkMiddleware((req) => ({
@@ -106,5 +110,8 @@ for (const { base, dir } of webApps) {
     res.sendFile(path.join(root, "index.html"));
   });
 }
+
+// Reports unhandled route errors to Sentry (no-op without SENTRY_DSN), then Express answers 500.
+Sentry.setupExpressErrorHandler(app);
 
 export default app;

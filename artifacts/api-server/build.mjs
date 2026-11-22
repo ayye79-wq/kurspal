@@ -68,7 +68,8 @@ async function buildAll() {
       "googleapis",
       "firebase-admin",
       "@parcel/watcher",
-      "@sentry/profiling-node",
+      // Sentry hooks into modules at runtime, so it must load from node_modules, not the bundle.
+      "@sentry/*",
       "@tree-sitter/*",
       "aws-sdk",
       "classic-level",

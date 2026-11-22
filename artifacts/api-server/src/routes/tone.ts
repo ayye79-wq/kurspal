@@ -4,6 +4,7 @@ import { db, toneProfilesTable } from "@workspace/db";
 import { SaveToneProfileBody } from "@workspace/api-zod";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { requireAuth } from "../middlewares/clerkAuthMiddleware";
+import { recordAiUsage } from "../lib/aiUsage";
 
 const router: IRouter = Router();
 
@@ -49,6 +50,7 @@ router.post("/tone-profile", requireAuth, async (req, res): Promise<void> => {
         },
       ],
     });
+    recordAiUsage({ userId, feature: "tone-profile", model: "gpt-4o-mini", usage: summaryResponse.usage });
     toneSummary = summaryResponse.choices[0]?.message?.content ?? null;
   } catch (err) {
     req.log.warn({ err }, "Failed to generate tone summary");

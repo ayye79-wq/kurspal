@@ -358,6 +358,12 @@ export async function customFetch<T = unknown>(
     }
   }
 
+  // The server resets the free AI limit at the student's local midnight.
+  if (!headers.has("x-timezone")) {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (zone) headers.set("x-timezone", zone);
+  }
+
   const requestInfo = { method, url: resolveUrl(input) };
 
   const response = await fetch(input, { ...init, method, headers });

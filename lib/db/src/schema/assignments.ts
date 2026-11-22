@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { coursesTable } from "./courses";
@@ -12,7 +12,10 @@ export const assignmentsTable = pgTable("assignments", {
   subject: text("subject"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, (table) => [
+  index("assignments_user_id_idx").on(table.userId),
+  index("assignments_course_id_idx").on(table.courseId),
+]);
 
 export const draftsTable = pgTable("drafts", {
   id: serial("id").primaryKey(),
@@ -21,7 +24,7 @@ export const draftsTable = pgTable("drafts", {
   draftType: text("draft_type").notNull().default("initial"),
   instructions: text("instructions"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [index("drafts_assignment_id_idx").on(table.assignmentId)]);
 
 export const insertAssignmentSchema = createInsertSchema(assignmentsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertDraftSchema = createInsertSchema(draftsTable).omit({ id: true, createdAt: true });

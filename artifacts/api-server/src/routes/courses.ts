@@ -8,13 +8,14 @@ import {
   AddCourseMaterialBody,
 } from "@workspace/api-zod";
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { recordAiUsage } from "../lib/aiUsage";
 import { z } from "zod";
 import { requireAuth } from "../middlewares/clerkAuthMiddleware";
 
 const router: IRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
-async function autoSummarizeMaterial(title: string, content: string): Promise<string | null> {
+async function autoSummarizeMaterial(userId: string, title: string, content: string): Promise<string | null> {
   try {
     const excerpt = content.slice(0, 3000);
     const response = await openai.chat.completions.create({
@@ -34,6 +35,7 @@ async function autoSummarizeMaterial(title: string, content: string): Promise<st
       max_completion_tokens: 1000,
       reasoning_effort: "low",
     });
+    recordAiUsage({ userId, feature: "material-summary", model: "gpt-5-mini", usage: response.usage });
     return response.choices[0]?.message?.content?.trim() ?? null;
   } catch {
     return null;
@@ -193,7 +195,7 @@ router.post("/courses/:id/materials", requireAuth, async (req: Request, res: Res
     res.status(404).json({ error: "Course not found" });
     return;
   }
-  const summary = await autoSummarizeMaterial(parsed.data.title, parsed.data.content);
+  const summary = await autoSummarizeMaterial(userId, parsed.data.title, parsed.data.content);
   const [material] = await db
     .insert(courseMaterialsTable)
     .values({ courseId: params.data.id, ...parsed.data, summary })
@@ -255,7 +257,7 @@ router.post("/courses/:id/materials/upload", requireAuth, upload.single("file"),
     return;
   }
 
-  const summary = await autoSummarizeMaterial(title, content);
+  const summary = await autoSummarizeMaterial(userId, title, content);
   const [material] = await db
     .insert(courseMaterialsTable)
     .values({

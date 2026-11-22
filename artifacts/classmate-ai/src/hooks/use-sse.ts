@@ -24,7 +24,7 @@ export function useSSE() {
     try {
       const response = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Timezone": Intl.DateTimeFormat().resolvedOptions().timeZone },
         credentials: "include",
         body: JSON.stringify(body),
         signal: abortControllerRef.current.signal,

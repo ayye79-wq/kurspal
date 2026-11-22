@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -12,7 +12,7 @@ export const coursesTable = pgTable("courses", {
   color: text("color").notNull().default("#6B8F71"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, (table) => [index("courses_user_id_idx").on(table.userId)]);
 
 export const courseMaterialsTable = pgTable("course_materials", {
   id: serial("id").primaryKey(),
@@ -23,7 +23,7 @@ export const courseMaterialsTable = pgTable("course_materials", {
   fileName: text("file_name"),
   summary: text("summary"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [index("course_materials_course_id_idx").on(table.courseId)]);
 
 export const insertCourseSchema = createInsertSchema(coursesTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertCourseMaterialSchema = createInsertSchema(courseMaterialsTable).omit({ id: true, createdAt: true });

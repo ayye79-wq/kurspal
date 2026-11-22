@@ -5,6 +5,7 @@ import { openai } from "@workspace/integrations-openai-ai-server";
 import { db, coursesTable, courseMaterialsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/clerkAuthMiddleware";
 import { requireAiQuota } from "../middlewares/aiQuotaMiddleware";
+import { markAiAnswered, type TokenUsage } from "../lib/aiUsage";
 import {
   AnalyzePromptBody,
   GenerateDraftBody,
@@ -44,23 +45,29 @@ async function streamCompletion(
   const abort = new AbortController();
   res.on("close", () => abort.abort());
 
+  const model = "gpt-4o-mini";
   try {
     const stream = await openai.chat.completions.create(
       {
-        model: "gpt-4o-mini",
+        model,
         max_completion_tokens: 2048,
         messages,
         stream: true,
+        // The final chunk then carries token counts for cost tracking.
+        stream_options: { include_usage: true },
       },
       { signal: abort.signal },
     );
 
+    let usage: TokenUsage = null;
     for await (const chunk of stream) {
+      if (chunk.usage) usage = chunk.usage;
       const content = chunk.choices[0]?.delta?.content;
       if (content) {
         res.write(`data: ${JSON.stringify({ content })}\n\n`);
       }
     }
+    markAiAnswered(res.req, res, model, usage);
   } catch (err) {
     if (abort.signal.aborted) return;
     res.req.log.error({ err }, "AI stream failed");
@@ -331,10 +338,12 @@ router.post("/ai/scan", async (req, res): Promise<void> => {
 
   const { imageBase64, mimeType } = parsed.data;
 
+  const model = "gpt-4o";
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      max_tokens: 2048,
+      model,
+      max_completion_tokens: 2048,
+      stream: false,
       messages: [
         {
           role: "user",
@@ -350,9 +359,10 @@ router.post("/ai/scan", async (req, res): Promise<void> => {
           ],
         },
       ],
-    } as Parameters<typeof openai.chat.completions.create>[0]);
+    });
 
     const text = response.choices[0]?.message?.content ?? "";
+    markAiAnswered(req, res, model, response.usage);
     res.json({ text });
   } catch (err) {
     req.log.error(err, "scan failed");
@@ -404,9 +414,10 @@ router.post("/ai/quiz", async (req, res): Promise<void> => {
   const { content, courseId } = parsed.data;
   const courseContext = await buildCourseContext(req.clerkUserId!, courseId);
 
+  const model = "gpt-4o-mini";
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model,
       max_completion_tokens: 1500,
       stream: false,
       messages: [
@@ -434,6 +445,7 @@ Rules:
     const raw = completion.choices[0]?.message?.content?.trim() ?? "";
     const jsonStr = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
     const data = JSON.parse(jsonStr);
+    markAiAnswered(req, res, model, completion.usage);
     res.json(data);
   } catch {
     res.status(500).json({ error: "Quiz generation failed" });

@@ -21,6 +21,8 @@ export const usersTable = pgTable("users", {
   stripeSubscriptionId: varchar("stripe_subscription_id"),
   isPremium: boolean("is_premium").notNull().default(false),
   premiumExpiresAt: timestamp("premium_expires_at", { withTimezone: true }),
+  // IANA zone reported by the apps; decides when the free daily limit resets.
+  timeZone: varchar("time_zone"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

@@ -51,3 +51,13 @@ services:
         sync: false
       - key: FREE_DAILY_AI_LIMIT
         value: "10"
+      # Crash reports (sentry.io → project → Client Keys). Server and website use the same DSN.
+      - key: SENTRY_DSN
+        sync: false
+      - key: VITE_SENTRY_DSN
+        sync: false
+      # Product analytics (posthog.com → Project settings → Project API key, starts phc_).
+      - key: POSTHOG_KEY
+        sync: false
+      - key: VITE_POSTHOG_KEY
+        sync: false

@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request } from "express";
 import { z } from "zod";
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { recordAiUsage, type TokenUsage } from "../lib/aiUsage";
 
 const router: IRouter = Router();
 
@@ -93,6 +94,7 @@ router.post("/ai/demo", async (req, res): Promise<void> => {
       max_completion_tokens: 2000,
       reasoning_effort: "low",
       stream: true,
+      stream_options: { include_usage: true },
       messages: [
         { role: "system", content: DEMO_SYSTEM_PROMPT },
         { role: "user", content: prompt },
@@ -101,7 +103,9 @@ router.post("/ai/demo", async (req, res): Promise<void> => {
 
     let emittedContent = false;
     let finishReason: string | null = null;
+    let usage: TokenUsage = null;
     for await (const chunk of stream) {
+      if (chunk.usage) usage = chunk.usage;
       const choice = chunk.choices[0];
       const content = choice?.delta?.content;
       if (content) {
@@ -112,6 +116,7 @@ router.post("/ai/demo", async (req, res): Promise<void> => {
         finishReason = choice.finish_reason;
       }
     }
+    recordAiUsage({ userId: null, feature: "demo", model: "gpt-5-mini", usage });
     // gpt-5 reasoning can rarely consume the whole token budget, ending with
     // finish_reason "length" and no visible text. Surface that as an error so
     // the demo UI can prompt a retry instead of showing an empty result.
